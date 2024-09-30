@@ -15,7 +15,7 @@ jobs:
       - name: Update dashboard data
         run: |
           # fetch ci nightly data as temporary file
-          node scripts/fetch-ci-nightly-data.js | tee tmp-data.js
+          node scripts/fetch-ci-nightly-data.js | tee tmp-data.json
           # switch to a branch specifically for holding latest data
           git config --global user.name "GH Actions Workflow"
           git config --global user.email "<gha@runner>"
@@ -25,7 +25,7 @@ jobs:
           git reset HEAD~1
           # overwrite the old data
           mkdir -p data/
-          mv tmp-data.js job_stats.json
+          mv tmp-data.json data/job_stats.json
           # commit
           git add data
           git commit -m '[skip ci] latest ci nightly data'
