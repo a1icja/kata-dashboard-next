@@ -25,7 +25,7 @@ jobs:
           git reset HEAD~1
           # overwrite the old data
           mkdir -p data/
-          mv tmp-data.js data/ci-nightly-data.js
+          mv tmp-data.js job_stats.json
           # commit
           git add data
           git commit -m '[skip ci] latest ci nightly data'
