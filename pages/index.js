@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 // import { fetchCIData } from "../scripts/fetch-ci-nightly-data";
-import data from "../job_stats.json";
+import data from "../data/job_stats.json";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);

@@ -143,9 +143,7 @@ async function main() {
   var job_stats = compute_job_stats(runs_with_job_data);
 
   // Write the job_stats to console as a javascript variable
-  console.log("var ci_nightly_data = ");
   console.log(job_stats);
-  console.log(";");
 }
 
 
