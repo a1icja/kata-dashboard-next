@@ -142,8 +142,8 @@ async function main() {
   // and the URLs associated with them).
   var job_stats = compute_job_stats(runs_with_job_data);
 
-  // Write the job_stats to console as a javascript variable
-  console.log(job_stats);
+  // Write the job_stats to console as a JSON object
+  console.log(JSON.stringify(job_stats));
 }
 
 
