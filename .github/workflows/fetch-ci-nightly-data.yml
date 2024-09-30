@@ -1,0 +1,32 @@
+name: Fetch CI Nightly Data
+run-name: Fetch CI Nightly Data
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch-and-commit-data:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update dashboard data
+        run: |
+          # fetch ci nightly data as temporary file
+          node scripts/fetch-ci-nightly-data.js | tee tmp-data.js
+          # switch to a branch specifically for holding latest data
+          git config --global user.name "GH Actions Workflow"
+          git config --global user.email "<gha@runner>"
+          git fetch --all
+          git checkout latest-dashboard-data
+          # back out whatever data was there
+          git reset HEAD~1
+          # overwrite the old data
+          mkdir -p data/
+          mv tmp-data.js data/ci-nightly-data.js
+          # commit
+          git add data
+          git commit -m '[skip ci] latest ci nightly data'
+          git push --force
