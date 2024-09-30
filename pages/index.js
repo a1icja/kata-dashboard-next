@@ -120,11 +120,16 @@ export default function Home() {
         loading={loading}
       >
         <Column expander style={{ width: "5rem" }} />
-        <Column field="name" header="Name"></Column>
-        <Column field="runs" header="Runs"></Column>
-        <Column field="fails" header="Fails"></Column>
-        <Column field="skips" header="Skips"></Column>
-        <Column field="weather" header="Weather" body={weatherTemplate}></Column>
+        <Column field="name" header="Name" filter></Column>
+        <Column field="runs" header="Runs" sortable></Column>
+        <Column field="fails" header="Fails" sortable></Column>
+        <Column field="skips" header="Skips" sortable></Column>
+        <Column
+          field="weather"
+          header="Weather"
+          body={weatherTemplate}
+          sortable
+        ></Column>
       </DataTable>
     </div>
   );
