@@ -19,3 +19,13 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+
+.title-link {
+    font-size: 1.5rem;
+    text-decoration: underline;
+    color: inherit;
+}
+
+.title-link:hover {
+    color: #007bff;
+}
