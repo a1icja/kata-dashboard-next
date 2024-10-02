@@ -4,11 +4,11 @@ import { Column } from "primereact/column";
 // import { fetchCIData } from "../scripts/fetch-ci-nightly-data";
 import data from "../data/job_stats.json";
 import Image from 'next/image';
-import getConfig from 'next/config';
 
-const { publicRuntimeConfig } = getConfig();
-const basePath = publicRuntimeConfig.basePath;
-// const basePath = "";
+// import getConfig from 'next/config';
+// const { publicRuntimeConfig } = getConfig();
+// const basePath = publicRuntimeConfig.basePath + '/';
+const basePath = "";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,7 @@ export default function Home() {
     return (
       <div>
         <Image
-          src={`${basePath}/${icon}`}
+          src={`${basePath}${icon}`}
           alt="weather"
           width={32}
           height={32} 
