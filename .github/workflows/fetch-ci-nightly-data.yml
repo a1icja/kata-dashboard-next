@@ -25,6 +25,7 @@ jobs:
           git pull
           # overwrite the old data
           git rm -r --cached data/
+          rm -rf data/
           mkdir -p data/
           mv tmp-data.json data/job_stats.json
           # commit
