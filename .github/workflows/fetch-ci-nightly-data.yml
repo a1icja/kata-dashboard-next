@@ -21,8 +21,8 @@ jobs:
           git config --global user.email "<gha@runner>"
           git fetch --all
           git checkout latest-dashboard-data
-          # back out whatever data was there
-          git reset HEAD~1
+          # pull in the latest changes
+          git pull
           # overwrite the old data
           mkdir -p data/
           mv tmp-data.json data/job_stats.json
