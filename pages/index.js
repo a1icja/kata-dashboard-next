@@ -94,7 +94,7 @@ export default function Home() {
     return (
       <div key={`${job.name}-runs`} className="p-3">
         {runs.map((run) => {
-          const emoji = run.result === "Pass" ? "✅" : "❌";
+          const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
           return (
             <span key={`${job.name}-runs-${run.run_num}`}>
               <a href={run.url}>
