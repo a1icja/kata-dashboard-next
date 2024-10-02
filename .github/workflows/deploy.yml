@@ -5,9 +5,11 @@
 name: Deploy Next.js site to Pages
 
 on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["latest-dashboard-data"]
+  # Run this workflow when the Fetch CI Nightly Data workflow completes
+  workflow_run:
+    workflows: ["Fetch CI Nightly Data"]
+    types:
+      - completed
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
