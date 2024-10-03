@@ -45,11 +45,23 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true)
+
+    // Filter based on required tag.
     let filteredJobs = jobs;
     if (requiredFilter) {
       filteredJobs = jobs.filter(job => job.required);
     }
-  
+
+    // Filter based on name from URL
+    const url = new URLSearchParams(window.location.search);
+    const searchParam = url.get("search");
+    if (searchParam) {
+      filteredJobs = filteredJobs.filter(job => 
+          job.name.toLowerCase().includes(searchParam.toLowerCase())
+      );
+    }
+
+    // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
       name: job.name,
       runs: job.runs,
@@ -58,39 +70,9 @@ export default function Home() {
       required: job.required,
       weather: "Sunny",
     }));
-  
     setRows(filteredRows);
     setLoading(false);
   }, [jobs, requiredFilter]);
-
-
-  useEffect(() => {
-    setLoading(true);
-    // Get the search parameters from the URL.
-    const url = new URLSearchParams(window.location.search);
-    const searchParam = url.get("search");
-
-    // Filter the jobs based on the search input.
-    // Based on job name.
-    let filteredJobs = jobs;
-    if (searchParam) {
-        filteredJobs = jobs.filter(job => 
-            job.name.toLowerCase().includes(searchParam.toLowerCase())
-        );
-    }
-
-    // Create the rows again and set them
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      weather: "Sunny",
-    }));
-    setRows(filteredRows);
-    setLoading(false);
-}, [jobs]);
 
 
   const handleRequiredFilterChange = (checked) => {
