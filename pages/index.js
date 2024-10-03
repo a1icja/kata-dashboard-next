@@ -26,17 +26,6 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    console.log(params)
-
-    const searchParam = params.get("search");
-    if (searchParam) {
-        setSearchTerm(searchParam);
-    }
-}, []);
-
-
-  useEffect(() => {
     const fetchData = async () => {
       // const data = await fetchCIData();
 
