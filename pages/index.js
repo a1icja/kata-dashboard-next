@@ -26,6 +26,17 @@ export default function Home() {
   ];
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    console.log(params)
+
+    const searchParam = params.get("search");
+    if (searchParam) {
+        setSearchTerm(searchParam);
+    }
+}, []);
+
+
+  useEffect(() => {
     const fetchData = async () => {
       // const data = await fetchCIData();
 
@@ -174,7 +185,7 @@ export default function Home() {
 
   return (
     <div>
-      <h1 class="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
+      <h1 className="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
         <a
           href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
           target="_blank"
