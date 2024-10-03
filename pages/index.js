@@ -44,6 +44,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setLoading(true)
     let filteredJobs = jobs;
     if (requiredFilter) {
       filteredJobs = jobs.filter(job => job.required);
@@ -136,7 +137,7 @@ export default function Home() {
     }
 
     return (
-      <div key={`${job.name}-runs`} className="p-3" style={{ marginLeft: '4.5rem', marginTop: '-2.0rem'}}>
+      <div key={`${job.name}-runs`} className="p-3">
         {runs.map((run) => {
           const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
           return (
@@ -162,7 +163,6 @@ export default function Home() {
 
   const requiredHeader = (
     <div>
-      Required&nbsp;&nbsp;
       <input
         type="checkbox"
         checked={requiredFilter === true}
@@ -173,8 +173,8 @@ export default function Home() {
   );
 
   return (
-    <div className="text-center">
-      <h1>
+    <div>
+      <h1 class="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
         <a
           href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
           target="_blank"
@@ -193,16 +193,19 @@ export default function Home() {
         loading={loading}
       >
         <Column expander style={{ width: "5rem" }} />
-        <Column field="name" header="Name" body={nameTemplate} filter sortable></Column>
+        <Column field="name" header="Name" body={nameTemplate} 
+          filter 
+          filterHeader="Filter by Name" 
+          filterPlaceholder="Search..." 
+          sortable></Column>
+        <Column header={requiredHeader}></Column>
+        <Column field="required" 
+          header="Required"
+          body={requiredTemplate}
+          sortable></Column>          
         <Column field="runs" header="Runs" sortable></Column>
         <Column field="fails" header="Fails" sortable></Column>
         <Column field="skips" header="Skips" sortable></Column>
-        <Column field="required" 
-          header={requiredHeader} 
-          body={requiredTemplate}
-          style={{ minWidth: '125px' }}
-          headerStyle={{ minWidth: '125px' }}
-        ></Column>
         <Column
           field="weather"
           header="Weather"

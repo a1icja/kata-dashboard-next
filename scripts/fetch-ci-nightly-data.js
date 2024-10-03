@@ -107,7 +107,7 @@ function get_job_data(run) {
   return fetch_jobs(1);
 }
 
-// Extract list of requied jobs (i.e. main branch details: protection: required_status_checks: contexts)
+// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
 function get_required_jobs(main_branch) {
   var required_jobs = main_branch["protection"]["required_status_checks"]["contexts"];
   // console.log('required jobs: ', required_jobs);
