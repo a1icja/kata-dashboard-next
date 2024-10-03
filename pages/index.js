@@ -63,6 +63,36 @@ export default function Home() {
     setLoading(false);
   }, [jobs, requiredFilter]);
 
+
+  useEffect(() => {
+    setLoading(true);
+    // Get the search parameters from the URL.
+    const url = new URLSearchParams(window.location.search);
+    const searchParam = url.get("search");
+
+    // Filter the jobs based on the search input.
+    // Based on job name.
+    let filteredJobs = jobs;
+    if (searchParam) {
+        filteredJobs = jobs.filter(job => 
+            job.name.toLowerCase().includes(searchParam.toLowerCase())
+        );
+    }
+
+    // Create the rows again and set them
+    const filteredRows = filteredJobs.map((job) => ({
+      name: job.name,
+      runs: job.runs,
+      fails: job.fails,
+      skips: job.skips,
+      required: job.required,
+      weather: "Sunny",
+    }));
+    setRows(filteredRows);
+    setLoading(false);
+}, [jobs]);
+
+
   const handleRequiredFilterChange = (checked) => {
     setRequiredFilter(checked);
   };
@@ -174,7 +204,7 @@ export default function Home() {
 
   return (
     <div>
-      <h1 class="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
+      <h1 className="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
         <a
           href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
           target="_blank"
