@@ -65,11 +65,29 @@ export default function Home() {
     setExpandedRows(updatedExpandedRows);
   };
 
+  // Import the required clipboard API functionality (optional in modern browsers)
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      console.log('Copied to clipboard:', text);
+    }).catch(err => {
+      console.error('Error copying text:', err);
+    });
+  };
+
   // Template for rendering the Name column as a clickable item
-  const nameStyle = { cursor: 'pointer' };
   const nameTemplate = (rowData) => (
-    <span onClick={() => toggleRow(rowData)} style={nameStyle}>
-      {rowData.name}
+    <span style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+      <span onClick={() => toggleRow(rowData)} style={{ marginRight: '0.5rem' }}>
+        {rowData.name}
+      </span>
+      <span
+        onClick={() => copyToClipboard(rowData.name)}
+        style={{ cursor: 'pointer', marginLeft: '0.5rem' }}
+        title="Copy to clipboard"
+        className="text-xs"
+      >
+        📋
+      </span>
     </span>
   );
 
@@ -155,7 +173,7 @@ export default function Home() {
               const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
               return (
                 <span key={`${job.name}-prs-${pr.num}`}>
-                  <a href={pr.url} target="_blank" rel="noopener noreferrer">
+                  <a href={pr.url}>
                     {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                   </a>
                 </span>
@@ -191,42 +209,47 @@ export default function Home() {
 
   return (
     <div className="text-center">
-      <h1>
+      <h1 className="text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500">
         <a
           href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
           target="_blank"
           rel="noopener noreferrer"
-          className="title-link"
         >
           Kata CI Dashboard
         </a>
       </h1>
-      <DataTable
-        value={filteredRows}
-        expandedRows={expandedRows}
-        stripedRows
-        rowExpansionTemplate={rowExpansionTemplate}
-        onRowToggle={(e) => setExpandedRows(e.data)}
-        loading={loading}
-      >
-        <Column expander style={{ width: "5rem" }} />
-        <Column field="name" header="Name" body={nameTemplate} filter sortable></Column>
-        <Column field="runs" header="Runs" sortable></Column>
-        <Column field="fails" header="Fails" sortable></Column>
-        <Column field="skips" header="Skips" sortable></Column>
-        <Column field="required" 
-          header={requiredHeader} 
-          body={requiredTemplate}
-          style={{ minWidth: '125px' }}
-          headerStyle={{ minWidth: '125px' }}
-        ></Column>
-        <Column
-          field="weather"
-          header="Weather"
-          body={weatherTemplate}
-          sortable
-        ></Column>
-      </DataTable>
+
+      <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased">
+        <DataTable
+          value={filteredRows}
+          expandedRows={expandedRows}
+          stripedRows
+          rowExpansionTemplate={rowExpansionTemplate}
+          onRowToggle={(e) => setExpandedRows(e.data)}
+          loading={loading}
+        >
+          <Column expander style={{ width: "5rem" }} />
+          <Column field="name" header="Name" body={nameTemplate} filter sortable></Column>
+          <Column field="runs" header="Runs" sortable></Column>
+          <Column field="fails" header="Fails" sortable></Column>
+          <Column field="skips" header="Skips" sortable></Column>
+          <Column field="required" 
+            header={requiredHeader} 
+            body={requiredTemplate}
+            style={{ minWidth: '125px' }}
+            headerStyle={{ minWidth: '125px' }}
+          ></Column>
+          <Column
+            field="weather"
+            header="Weather"
+            body={weatherTemplate}
+            sortable
+          ></Column>
+        </DataTable>
+        <div className="mt-4 text-lg">
+          Total Rows: {filteredRows.length}
+        </div>
+      </main>
     </div>
   );
 }
