@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-// import { fetchCIData } from "../scripts/fetch-ci-nightly-data";
-import data from "../data/job_stats.json";
 import Image from 'next/image';
 
-// import getConfig from 'next/config';
-// const { publicRuntimeConfig } = getConfig();
-// const basePath = publicRuntimeConfig.basePath + '/';
+import data from "../data/job_stats.json";
+
 const basePath = "";
 
 export default function Home() {
@@ -27,7 +24,10 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // const data = await fetchCIData();
+      const response = await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      );
+      const data = await response.json();
 
       const jobData = Object.keys(data).map((key) => {
         const job = data[key];
@@ -151,7 +151,8 @@ export default function Home() {
     return (
       <div key={`${job.name}-runs`} className="p-3">
         {runs.map((run) => {
-          const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
+          const emoji =
+            run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
           return (
             <span key={`${job.name}-runs-${run.run_num}`}>
               <a href={run.url}>
