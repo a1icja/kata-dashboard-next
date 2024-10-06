@@ -147,7 +147,7 @@ export default function Home() {
     }
 
     return (
-      <div key={`${job.name}-runs`} className="p-3">
+      <div key={`${job.name}-runs`} className="p-3 ml-8">
         {runs.map((run) => {
           const emoji =
             run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
