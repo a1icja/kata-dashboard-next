@@ -42,6 +42,18 @@ var pr_checks_url =  // for our purposes, 'check' refers to a job in the context
   "kata-containers/kata-containers/commits/";  // will be followed by {commit_sha}/check-runs
   // Max of 100 per page, w/ little *over* 300 checks total, so that's 40 calls total for 10 PRs
 
+// Github API URL for the main branch of the kata-containers repo.
+// Used to get the list of required jobs.
+var main_branch_url = 
+  "https://api.github.com/repos/" +
+  "kata-containers/kata-containers/branches/main";
+
+// Github API URL for the main branch of the kata-containers repo.
+// Used to get the list of required jobs.
+var main_branch_url = 
+  "https://api.github.com/repos/" +
+  "kata-containers/kata-containers/branches/main";
+
 // The number of jobs to fetch from the github API on each paged request.
 var jobs_per_request = 100;
 // The last X closed PRs to retrieve
@@ -67,6 +79,18 @@ async function fetch_pull_requests() {
   const prs_url = `${pull_requests_url}${pr_count}`;
   console.log(`fetch: ${prs_url}`);
   return fetch(prs_url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  }).then(function (response) {
+    return response.json();
+  });
+}
+
+// Perform a github API request for a list of "Required" jobs
+async function fetch_main_branch() {
+  return fetch(main_branch_url, {
     headers: {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -192,6 +216,13 @@ function get_check_data(pr) {
   return fetch_checks(1);
 }
 
+// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
+function get_required_jobs(main_branch) {
+  var required_jobs = main_branch["protection"]["required_status_checks"]["contexts"];
+  // console.log('required jobs: ', required_jobs);
+  return required_jobs;
+}
+
 // Calculate and return job stats across all runs
 function compute_job_stats(runs_with_job_data, prs_with_check_data) {
   var job_stats = {};
@@ -226,6 +257,29 @@ function compute_job_stats(runs_with_job_data, prs_with_check_data) {
       } else {
         job_stat["results"].push("Pass");
       }
+      job_stat["required"] = required_jobs.includes(job["name"]);
+    }
+  }
+  for (const pr of prs_with_check_data) {
+    for (const check of pr["checks"]) {
+      if ((check["name"] in job_stats)) {
+        var job_stat = job_stats[check["name"]];
+        job_stat["pr_urls"].push(pr["html_url"])
+        job_stat["pr_nums"].push(pr["number"])
+        if (check["conclusion"] != "success") {
+          if (check["conclusion"] == "skipped") {
+            // TODO: increment these counts?
+            // job_stat["skips"] += 1;
+            job_stat["pr_results"].push("Skip");
+          } else {
+            // failed or cancelled
+            // job_stat["fails"] += 1;
+            job_stat["pr_results"].push("Fail");
+          }
+        } else {
+          job_stat["pr_results"].push("Pass");
+        }
+      }
     }
   }
   for (const pr of prs_with_check_data) {
@@ -257,6 +311,10 @@ async function main() {
   // Fetch recent workflow runs via the github API
   var workflow_runs = await fetch_workflow_runs();
 
+  // Fetch required jobs from main branch
+  var main_branch = await fetch_main_branch();
+  var required_jobs = get_required_jobs(main_branch);
+
   // Fetch job data for each of the runs.
   // Store all of this in an array of maps, runs_with_job_data.
   var promises_buf = [];
@@ -283,6 +341,7 @@ async function main() {
 
   // Write the job_stats to console as a JSON object
   console.log(JSON.stringify(job_stats));
+  // console.log(JSON.stringify(required_jobs));
 }
 
 
