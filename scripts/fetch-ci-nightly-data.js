@@ -57,13 +57,16 @@ var main_branch_url =
 // The number of jobs to fetch from the github API on each paged request.
 var jobs_per_request = 100;
 // The last X closed PRs to retrieve
-var pr_count = 2;  // TODO: Update to 10 after testing
+var pr_count = 5;  // TODO: Update to 10 after testing
 // Complete list of jobs (from the CI nightly run)
 var job_names = new Set();
+// Count of the number of fetches
+var fetch_count = 0;
 
 // Perform a github API request for workflow runs.
 async function fetch_workflow_runs() {
-  console.log(`fetch: ${ci_nightly_runs_url}`);
+  fetch_count++;
+  console.log(`fetch ${fetch_count}: ${ci_nightly_runs_url}`);
   return fetch(ci_nightly_runs_url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -76,8 +79,9 @@ async function fetch_workflow_runs() {
 
 // Perform a github API request for the last pr_count closed PRs
 async function fetch_pull_requests() {
+  fetch_count++;
   const prs_url = `${pull_requests_url}${pr_count}`;
-  console.log(`fetch: ${prs_url}`);
+  console.log(`fetch ${fetch_count}: ${prs_url}`);
   return fetch(prs_url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -108,9 +112,10 @@ async function fetch_main_branch() {
 function get_job_data(run) {
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
+    fetch_count++;
     var jobs_url =
       run["jobs_url"] + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    console.log(`fetch: ${jobs_url}`);
+    console.log(`fetch ${fetch_count}: ${jobs_url}`);
     return fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
@@ -162,9 +167,10 @@ function get_job_data(run) {
 function get_check_data(pr) {
   // Perform a github API request for a list of commits for a PR (takes in the PR's head commit SHA)
   async function fetch_checks_by_page(which_page) {
+    fetch_count++;
     var checks_url = 
       pr_checks_url + prs_with_check_data["commit_sha"] + "/check-runs" + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    console.log(`fetch: ${checks_url}`);
+    console.log(`fetch ${fetch_count}: ${checks_url}`);
     return fetch(checks_url, {  
       headers: {
         Accept: "application/vnd.github+json",
@@ -182,7 +188,7 @@ function get_check_data(pr) {
     }
     return fetch_checks_by_page(p)
     .then(function (checks_request) {
-      console.log('checks_request', checks_request);
+      // console.log('checks_request', checks_request);
       for (const check of checks_request["check_runs"]) {
         // NOTE: For now, excluding checks that are not also run in CI Nightly
         if (job_names.has(check["name"])) {  
@@ -224,7 +230,7 @@ function get_required_jobs(main_branch) {
 }
 
 // Calculate and return job stats across all runs
-function compute_job_stats(runs_with_job_data, prs_with_check_data) {
+function compute_job_stats(runs_with_job_data, prs_with_check_data, required_jobs) {
   var job_stats = {};
   for (const run of runs_with_job_data) {
     for (const job of run["jobs"]) {
@@ -282,28 +288,6 @@ function compute_job_stats(runs_with_job_data, prs_with_check_data) {
       }
     }
   }
-  for (const pr of prs_with_check_data) {
-    for (const check of pr["checks"]) {
-      if ((check["name"] in job_stats)) {
-        var job_stat = job_stats[check["name"]];
-        job_stat["pr_urls"].push(pr["html_url"])
-        job_stat["pr_nums"].push(pr["number"])
-        if (check["conclusion"] != "success") {
-          if (check["conclusion"] == "skipped") {
-            // TODO: increment these counts?
-            // job_stat["skips"] += 1;
-            job_stat["pr_results"].push("Skip");
-          } else {
-            // failed or cancelled
-            // job_stat["fails"] += 1;
-            job_stat["pr_results"].push("Fail");
-          }
-        } else {
-          job_stat["pr_results"].push("Pass");
-        }
-      }
-    }
-  }
   return job_stats;
 }
 
@@ -337,7 +321,7 @@ async function main() {
   // Transform the raw details of each run and its jobs' results into a
   // an array of just the jobs and their overall results (e.g. pass or fail,
   // and the URLs associated with them).
-  var job_stats = compute_job_stats(runs_with_job_data, prs_with_check_data);
+  var job_stats = compute_job_stats(runs_with_job_data, prs_with_check_data, required_jobs);
 
   // Write the job_stats to console as a JSON object
   console.log(JSON.stringify(job_stats));

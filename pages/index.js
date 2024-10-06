@@ -4,16 +4,15 @@ import { Column } from "primereact/column";
 // import { fetchCIData } from "../scripts/fetch-ci-nightly-data";
 import data from "../data/job_stats.json";
 import Image from 'next/image';
+import getConfig from 'next/config';
 
-// import getConfig from 'next/config';
-// const { publicRuntimeConfig } = getConfig();
-// const basePath = publicRuntimeConfig.basePath + '/';
-const basePath = "";
+const { publicRuntimeConfig } = getConfig();
+const basePath = publicRuntimeConfig.basePath;
+// const basePath = "";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
-  const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
 
@@ -25,43 +24,28 @@ export default function Home() {
     "stormy.svg",
   ];
 
+  // Fetch job data once
   useEffect(() => {
+    // const data = await fetchCIData();
+
     const fetchData = async () => {
-      // const data = await fetchCIData();
-
-      const jobData = Object.keys(data).map((key) => {
-        const job = data[key];
-        return {
-          name: key,
-          ...job,
-        };
-      });
-
-      setJobs(jobData);
+      try {
+        const jobData = Object.keys(data).map((key) => {
+          const job = data[key];
+          return { name: key, ...job };
+        });
+        setJobs(jobData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false); // Set loading false whether success or failure
+      }
     };
 
     fetchData();
   }, []);
 
-  useEffect(() => {
-    setLoading(true)
-    let filteredJobs = jobs;
-    if (requiredFilter) {
-      filteredJobs = jobs.filter(job => job.required);
-    }
-  
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      weather: "Sunny",
-    }));
-  
-    setRows(filteredRows);
-    setLoading(false);
-  }, [jobs, requiredFilter]);
+  const filteredRows = requiredFilter ? jobs.filter((job) => job.required) : jobs;
 
   const handleRequiredFilterChange = (checked) => {
     setRequiredFilter(checked);
@@ -82,16 +66,12 @@ export default function Home() {
   };
 
   // Template for rendering the Name column as a clickable item
-  const nameTemplate = (rowData) => {
-    return (
-      <span
-        onClick={() => toggleRow(rowData)}
-        style={{ cursor: 'pointer' }}
-      >
-        {rowData.name}
-      </span>
-    );
-  };
+  const nameStyle = { cursor: 'pointer' };
+  const nameTemplate = (rowData) => (
+    <span onClick={() => toggleRow(rowData)} style={nameStyle}>
+      {rowData.name}
+    </span>
+  );
 
   const getWeatherIcon = (stat) => {
     const fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
@@ -112,7 +92,7 @@ export default function Home() {
     return (
       <div>
         <Image
-          src={`${basePath}${icon}`}
+          src={`${basePath}/${icon}`}
           alt="weather"
           width={32}
           height={32} 
@@ -124,9 +104,10 @@ export default function Home() {
 
   const rowExpansionTemplate = (data) => {
     console.log(data);
-
+  
     const job = jobs.find((job) => job.name === data.name);
-
+  
+    // Prepare run data
     const runs = [];
     for (let i = 0; i < job.runs; i++) {
       runs.push({
@@ -135,20 +116,55 @@ export default function Home() {
         url: job.urls[i],
       });
     }
+  
+    const prs = [];
+    job.pr_nums.forEach((pr_num, index) => {
+      const pr_url = job.pr_urls[index];
+      const pr_res = job.pr_results[index];
+
+      if (!prs.some((pr) => pr.num === pr_num && pr.url === pr_url)) {
+        prs.push({
+          num: pr_num,
+          url: pr_url,
+          res: pr_res,
+        });
+      }
+    });
 
     return (
-      <div key={`${job.name}-runs`} className="p-3">
-        {runs.map((run) => {
-          const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
-          return (
-            <span key={`${job.name}-runs-${run.run_num}`}>
-              <a href={run.url}>
-                {emoji} {run.run_num}
-              </a>
-              &nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-          );
-        })}
+      <div key={`${job.name}-runs`} className="p-3" style={{ marginLeft: '4.5rem', marginTop: '-2.0rem' }}>
+        {/* Display Runs */}
+        <div>
+          {runs.map((run) => {
+            const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
+            return (
+              <span key={`${job.name}-runs-${run.run_num}`}>
+                <a href={run.url}>
+                  {emoji} {run.run_num}
+                </a>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+              </span>
+            );
+          })}
+        </div>
+        
+        {/* Display Unique PRs in a Row */}
+        <div style={{ marginTop: '1rem' }}>
+          {prs.length > 0 ? (
+            prs.map((pr) => {
+              const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
+              return (
+                <span key={`${job.name}-prs-${pr.num}`}>
+                  <a href={pr.url} target="_blank" rel="noopener noreferrer">
+                    {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                  </a>
+                </span>
+              )
+            })
+          ) : (
+            <div>No PRs associated with this job</div>
+          )}
+        </div>
       </div>
     );
   };
@@ -163,6 +179,7 @@ export default function Home() {
 
   const requiredHeader = (
     <div>
+      Required&nbsp;&nbsp;
       <input
         type="checkbox"
         checked={requiredFilter === true}
@@ -173,8 +190,8 @@ export default function Home() {
   );
 
   return (
-    <div>
-      <h1 className="text-center mt-5 mb-3 text-5xl underline hover:text-sky-700">
+    <div className="text-center">
+      <h1>
         <a
           href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
           target="_blank"
@@ -185,7 +202,7 @@ export default function Home() {
         </a>
       </h1>
       <DataTable
-        value={rows}
+        value={filteredRows}
         expandedRows={expandedRows}
         stripedRows
         rowExpansionTemplate={rowExpansionTemplate}
@@ -193,19 +210,16 @@ export default function Home() {
         loading={loading}
       >
         <Column expander style={{ width: "5rem" }} />
-        <Column field="name" header="Name" body={nameTemplate} 
-          filter 
-          filterHeader="Filter by Name" 
-          filterPlaceholder="Search..." 
-          sortable></Column>
-        <Column header={requiredHeader}></Column>
-        <Column field="required" 
-          header="Required"
-          body={requiredTemplate}
-          sortable></Column>          
+        <Column field="name" header="Name" body={nameTemplate} filter sortable></Column>
         <Column field="runs" header="Runs" sortable></Column>
         <Column field="fails" header="Fails" sortable></Column>
         <Column field="skips" header="Skips" sortable></Column>
+        <Column field="required" 
+          header={requiredHeader} 
+          body={requiredTemplate}
+          style={{ minWidth: '125px' }}
+          headerStyle={{ minWidth: '125px' }}
+        ></Column>
         <Column
           field="weather"
           header="Weather"
