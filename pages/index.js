@@ -3,8 +3,6 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
 
-import data from "../data/job_stats.json";
-
 const basePath = "";
 
 export default function Home() {
