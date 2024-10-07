@@ -44,7 +44,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setLoading(true)
+    console.log("triggered");
+    setLoading(true);
 
     // Filter based on required tag.
     let filteredJobs = jobs;
@@ -61,34 +62,19 @@ export default function Home() {
       );
     }
 
+    // Create rows to set into table.
+    const filteredRows = filteredJobs.map((job) => ({
+    name: job.name,
+    runs: display === "pr" ? job.pr_runs : job.runs,
+    fails: display === "pr" ? job.pr_fails : job.fails,
+    skips: display === "pr" ? job.pr_skips : job.skips,
+    required: job.required,
+    weather: "Sunny",
+    }));
     
-    if (display == "pr")
-    {
-      // Create rows to set into table.
-      const filteredRows = filteredJobs.map((job) => ({
-        name: job.name,
-        runs: job.pr_runs,
-        fails: job.pr_fails,
-        skips: job.pr_skips,
-        required: job.required,
-        weather: "Sunny",
-      }));
-      setRows(filteredRows);
-    } else
-    {
-      // Create rows to set into table.
-      const filteredRows = filteredJobs.map((job) => ({
-        name: job.name,
-        runs: job.runs,
-        fails: job.fails,
-        skips: job.skips,
-        required: job.required,
-        weather: "Sunny",
-      }));   
-      setRows(filteredRows);
-    }
+    setRows(filteredRows);  
     setLoading(false);
-  }, [jobs, requiredFilter]);
+  }, [jobs, requiredFilter, display]);
 
 
   const handleRequiredFilterChange = (checked) => {
