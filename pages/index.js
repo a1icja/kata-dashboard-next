@@ -12,6 +12,7 @@ const basePath = "";
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
+  const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
   const [activeTab, setActiveTab] = useState('nightly');
@@ -189,7 +190,7 @@ export default function Home() {
 
   const renderTable = () => (
     <DataTable
-      value={filteredRows}
+      value={rows}
       expandedRows={expandedRows}
       stripedRows
       rowExpansionTemplate={rowExpansionTemplate}
