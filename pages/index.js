@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-// import { fetchCIData } from "../scripts/fetch-ci-nightly-data";
-import data from "../data/job_stats.json";
 import Image from 'next/image';
-import getConfig from 'next/config';
+import data from "../data/job_stats.json";
 
-const { publicRuntimeConfig } = getConfig();
-const basePath = publicRuntimeConfig.basePath;
-// const basePath = "";
+// import getConfig from 'next/config';
+// const { publicRuntimeConfig } = getConfig();
+// const basePath = publicRuntimeConfig.basePath;
+const basePath = "";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +28,11 @@ export default function Home() {
     // const data = await fetchCIData();
 
     const fetchData = async () => {
+      // const response = await fetch(
+      //   "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      // );
+      // const data = await response.json();
+
       try {
         const jobData = Object.keys(data).map((key) => {
           const job = data[key];
@@ -45,7 +49,37 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const filteredRows = requiredFilter ? jobs.filter((job) => job.required) : jobs;
+  useEffect(() => {
+    setLoading(true)
+
+    // Filter based on required tag.
+    let filteredJobs = jobs;
+    if (requiredFilter) {
+      filteredJobs = jobs.filter(job => job.required);
+    }
+
+    // Filter based on name from URL
+    const url = new URLSearchParams(window.location.search);
+    const searchParam = url.get("search");
+    if (searchParam) {
+      filteredJobs = filteredJobs.filter(job => 
+          job.name.toLowerCase().includes(searchParam.toLowerCase())
+      );
+    }
+
+    // Create rows to set into table.
+    const filteredRows = filteredJobs.map((job) => ({
+      name: job.name,
+      runs: job.runs,
+      fails: job.fails,
+      skips: job.skips,
+      required: job.required,
+      weather: "Sunny",
+    }));
+    setRows(filteredRows);
+    setLoading(false);
+  }, [jobs, requiredFilter]);
+
 
   const handleRequiredFilterChange = (checked) => {
     setRequiredFilter(checked);
@@ -149,7 +183,6 @@ export default function Home() {
             )}
           </div>
         )}
-      
       </div>
     );
   };
