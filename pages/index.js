@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
-import data from "../data/job_stats.json";
+import localData from "../data/job_stats.json";
 
-// import getConfig from 'next/config';
-// const { publicRuntimeConfig } = getConfig();
-// const basePath = publicRuntimeConfig.basePath;
 const basePath = "";
 
 export default function Home() {
@@ -29,10 +26,16 @@ export default function Home() {
     // const data = await fetchCIData();
 
     const fetchData = async () => {
-      // const response = await fetch(
-      //   "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
-      // );
-      // const data = await response.json();
+      let data = {};
+      if (process.env.NODE_ENV === "development") {
+        data = localData;
+      } else {
+        console.log("test")
+        const response = await fetch(
+          "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+        );
+        data = await response.json();
+      }
 
       try {
         const jobData = Object.keys(data).map((key) => {
@@ -75,6 +78,9 @@ export default function Home() {
       fails: job.fails,
       skips: job.skips,
       required: job.required,
+      pr_runs: job.pr_runs,
+      pr_fails: job.pr_fails,
+      pr_skips: job.pr_skips,
       weather: "Sunny",
     }));
     setRows(filteredRows);
@@ -200,7 +206,7 @@ export default function Home() {
       <Column expander style={{ width: "5rem" }} />
       <Column field="name" header="Name" filter sortable />
       <Column field={activeTab === 'nightly' ? 'runs' : 'pr_runs'} header="Runs" sortable />
-      <Column field={activeTab === 'nightly' ? 'failes' : 'pr_fails'} header="Fails" sortable />
+      <Column field={activeTab === 'nightly' ? 'fails' : 'pr_fails'} header="Fails" sortable />
       <Column field={activeTab === 'nightly' ? 'skips' : 'pr_skips'} header="Skips" sortable />
       <Column field="required" header="Required" sortable/>
       <Column field="weather" header="Weather" body={weatherTemplate} sortable />
@@ -219,33 +225,39 @@ export default function Home() {
         </a>
       </h1>
 
-      <div className="tabs mt-4">
-        <button
-          className={`tab ${activeTab === 'nightly' ? 'active' : ''}`}
-          onClick={() => setActiveTab('nightly')}
-        >
-          Nightly Jobs
-        </button>
-        <button
-          className={`tab ${activeTab === 'prchecks' ? 'active' : ''}`}
-          onClick={() => setActiveTab('prchecks')}
-        >
-          PR Checks
-        </button>
+      <div className="flex justify-between items-center mt-4 ml-4">
+        <div className="tabs">
+          <button
+            className={`tab px-4 py-2 border-b-2 ${activeTab === 'nightly' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
+            onClick={() => setActiveTab('nightly')}
+          >
+            Nightly Jobs
+          </button>
+          <button
+            className={`tab px-4 py-2 border-b-2 ${activeTab === 'prchecks' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
+            onClick={() => setActiveTab('prchecks')}
+          >
+            PR Checks
+          </button>
+        </div>
+
+        <div>
+          Required Jobs Only: &nbsp;
+          <input
+            type="checkbox"
+            checked={requiredFilter === true}
+            onChange={(e) => handleRequiredFilterChange(e.target.checked)}
+            className="mr-4"
+          />
+        </div>
       </div>
 
       <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
-        <input
-          type="checkbox"
-          checked={requiredFilter === true}
-          onChange={(e) => handleRequiredFilterChange(e.target.checked)}
-          style={{height: '1rem', width: '1rem'}}
-        />
         <div>
           {renderTable()}
         </div>
         <div className="mt-4 text-lg">
-          Total Rows: {filteredRows.length}
+          Total Rows: {rows.length}
         </div>
       </main>
     </div>
