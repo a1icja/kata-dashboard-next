@@ -243,15 +243,15 @@ export default function Home() {
         </a>
       </h1>
       <nav className="w-48 h-screen bg-gray-400 border-10 border-slate-500 fixed top-0 left-0 pt-5">
-        <h2>Display View</h2>
+        <h2 className="text-center underline">Display View</h2>
 
-        <input type="radio" name="display" value="nightly" 
+        <input className="ml-4 mt-2" type="radio" name="display" value="nightly" 
         checked={display === 'nightly'} 
         onChange={(e) => handleDisplayChange(e.target.value)}></input>
         <label>Nightly Runs</label>
         <br></br>
 
-        <input type="radio" name="display" value="pr"
+        <input className="ml-4" type="radio" name="display" value="pr"
         checked={display === 'pr'} 
         onChange={(e) => handleDisplayChange(e.target.value)}></input>
         <label>PRs</label> 
