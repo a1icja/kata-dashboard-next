@@ -18,7 +18,7 @@
 //     1 for the last 10 closed pull requests
 //    20 for all 4 batches of checks (max of a hundred each) for each of the 5 PRs
 //     X Other?
-// TOTAL: 53?
+// TOTAL: 43?
 // LIMIT: 60 per hour  // curl https://api.github.com/rate_limit
 // TODO: Further explore using the GraphQL API, which permits more narrowly targeted queries 
 
@@ -57,7 +57,7 @@ var main_branch_url =
 // The number of jobs to fetch from the github API on each paged request.
 var jobs_per_request = 100;
 // The last X closed PRs to retrieve
-var pr_count = 5;  // TODO: Update to 10 after testing
+var pr_count = 5; 
 // Complete list of jobs (from the CI nightly run)
 var job_names = new Set();
 // Count of the number of fetches
@@ -242,6 +242,10 @@ function compute_job_stats(runs_with_job_data, prs_with_check_data, required_job
           urls: [], // ordered list of URLs associated w/ each run
           results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
+
+          pr_runs: 0,
+          pr_fails: 0,
+          pr_skips: 0,
           pr_urls: [], // list of PR URLs that this job is associated with
           pr_results: [], // list of job statuses for the PRs in which the job was run
           pr_nums: [], // list of PR numbers that this job is associated with
@@ -270,16 +274,16 @@ function compute_job_stats(runs_with_job_data, prs_with_check_data, required_job
     for (const check of pr["checks"]) {
       if ((check["name"] in job_stats)) {
         var job_stat = job_stats[check["name"]];
+        job_stat["pr_runs"] += 1;
         job_stat["pr_urls"].push(pr["html_url"])
         job_stat["pr_nums"].push(pr["number"])
         if (check["conclusion"] != "success") {
           if (check["conclusion"] == "skipped") {
-            // TODO: increment these counts?
-            // job_stat["skips"] += 1;
+            job_stat["pr_skips"] += 1;
             job_stat["pr_results"].push("Skip");
           } else {
             // failed or cancelled
-            // job_stat["fails"] += 1;
+            job_stat["pr_fails"] += 1;
             job_stat["pr_results"].push("Fail");
           }
         } else {

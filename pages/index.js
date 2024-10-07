@@ -15,6 +15,7 @@ export default function Home() {
   const [jobs, setJobs] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
+  const [activeTab, setActiveTab] = useState('nightly');
 
   const icons = [
     "sunny.svg",
@@ -24,7 +25,6 @@ export default function Home() {
     "stormy.svg",
   ];
 
-  // Fetch job data once
   useEffect(() => {
     // const data = await fetchCIData();
 
@@ -38,7 +38,7 @@ export default function Home() {
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false); // Set loading false whether success or failure
+        setLoading(false);
       }
     };
 
@@ -51,48 +51,13 @@ export default function Home() {
     setRequiredFilter(checked);
   };
 
-  // Function to toggle row expansion
-  const toggleRow = (rowData) => {
-    const isRowExpanded = expandedRows.includes(rowData);
-
-    let updatedExpandedRows;
-    if (isRowExpanded) {
-      updatedExpandedRows = expandedRows.filter((r) => r !== rowData);
-    } else {
-      updatedExpandedRows = [...expandedRows, rowData];
-    }
-
-    setExpandedRows(updatedExpandedRows);
-  };
-
-  // Import the required clipboard API functionality (optional in modern browsers)
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      console.log('Copied to clipboard:', text);
-    }).catch(err => {
-      console.error('Error copying text:', err);
-    });
-  };
-
-  // Template for rendering the Name column as a clickable item
-  const nameTemplate = (rowData) => (
-    <span style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-      <span onClick={() => toggleRow(rowData)} style={{ marginRight: '0.5rem' }}>
-        {rowData.name}
-      </span>
-      <span
-        onClick={() => copyToClipboard(rowData.name)}
-        style={{ cursor: 'pointer', marginLeft: '0.5rem' }}
-        title="Copy to clipboard"
-        className="text-xs"
-      >
-        📋
-      </span>
-    </span>
-  );
-
   const getWeatherIcon = (stat) => {
-    const fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
+    let fail_rate = 0;
+    if (activeTab === 'nightly') {
+      fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
+    } else {
+      fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
+    }
     var idx = Math.floor((fail_rate * 10) / 2); // e.g. failing 3/9 runs is .33, or idx=1
     if (idx == icons.length) {
       // edge case: if 100% failures, then we go past the end of icons[]
@@ -151,60 +116,61 @@ export default function Home() {
 
     return (
       <div key={`${job.name}-runs`} className="p-3" style={{ marginLeft: '4.5rem', marginTop: '-2.0rem' }}>
-        {/* Display Runs */}
-        <div>
-          {runs.map((run) => {
-            const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
-            return (
-              <span key={`${job.name}-runs-${run.run_num}`}>
-                <a href={run.url}>
-                  {emoji} {run.run_num}
-                </a>
-                &nbsp;&nbsp;&nbsp;&nbsp;
-              </span>
-            );
-          })}
-        </div>
-        
-        {/* Display Unique PRs in a Row */}
-        <div style={{ marginTop: '1rem' }}>
-          {prs.length > 0 ? (
-            prs.map((pr) => {
-              const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
+        {activeTab === 'nightly' && (
+          <div>
+            {runs.map((run) => {
+              const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
               return (
-                <span key={`${job.name}-prs-${pr.num}`}>
-                  <a href={pr.url}>
-                    {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <span key={`${job.name}-runs-${run.run_num}`}>
+                  <a href={run.url}>
+                    {emoji} {run.run_num}
                   </a>
+                  &nbsp;&nbsp;&nbsp;&nbsp;
                 </span>
-              )
-            })
-          ) : (
-            <div>No PRs associated with this job</div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
+        {activeTab === 'prchecks' && (
+          <div>
+            {prs.length > 0 ? (
+              prs.map((pr) => {
+                const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
+                return (
+                  <span key={`${job.name}-prs-${pr.num}`}>
+                    <a href={pr.url}>
+                      {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    </a>
+                  </span>
+                )
+              })
+            ) : (
+              <div>No PRs associated with this job</div>
+            )}
+          </div>
+        )}
+      
       </div>
     );
   };
 
-  const requiredTemplate = (data) => {
-    return (
-      <span style={{ color: data.required ? 'green' : 'red' }}>
-        {data.required ? 'True' : 'False'}
-      </span>
-    );
-  };
-
-  const requiredHeader = (
-    <div>
-      Required&nbsp;&nbsp;
-      <input
-        type="checkbox"
-        checked={requiredFilter === true}
-        onChange={(e) => handleRequiredFilterChange(e.target.checked)}
-        style={{height: '1rem', width: '1rem'}}
-      />
-    </div>
+  const renderTable = () => (
+    <DataTable
+      value={filteredRows}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+    >
+      <Column expander style={{ width: "5rem" }} />
+      <Column field="name" header="Name" filter sortable />
+      <Column field={activeTab === 'nightly' ? 'runs' : 'pr_runs'} header="Runs" sortable />
+      <Column field={activeTab === 'nightly' ? 'failes' : 'pr_fails'} header="Fails" sortable />
+      <Column field={activeTab === 'nightly' ? 'skips' : 'pr_skips'} header="Skips" sortable />
+      <Column field="required" header="Required" sortable/>
+      <Column field="weather" header="Weather" body={weatherTemplate} sortable />
+    </DataTable>
   );
 
   return (
@@ -219,33 +185,31 @@ export default function Home() {
         </a>
       </h1>
 
-      <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased">
-        <DataTable
-          value={filteredRows}
-          expandedRows={expandedRows}
-          stripedRows
-          rowExpansionTemplate={rowExpansionTemplate}
-          onRowToggle={(e) => setExpandedRows(e.data)}
-          loading={loading}
+      <div className="tabs mt-4">
+        <button
+          className={`tab ${activeTab === 'nightly' ? 'active' : ''}`}
+          onClick={() => setActiveTab('nightly')}
         >
-          <Column expander style={{ width: "5rem" }} />
-          <Column field="name" header="Name" body={nameTemplate} filter sortable></Column>
-          <Column field="runs" header="Runs" sortable></Column>
-          <Column field="fails" header="Fails" sortable></Column>
-          <Column field="skips" header="Skips" sortable></Column>
-          <Column field="required" 
-            header={requiredHeader} 
-            body={requiredTemplate}
-            style={{ minWidth: '125px' }}
-            headerStyle={{ minWidth: '125px' }}
-          ></Column>
-          <Column
-            field="weather"
-            header="Weather"
-            body={weatherTemplate}
-            sortable
-          ></Column>
-        </DataTable>
+          Nightly Jobs
+        </button>
+        <button
+          className={`tab ${activeTab === 'prchecks' ? 'active' : ''}`}
+          onClick={() => setActiveTab('prchecks')}
+        >
+          PR Checks
+        </button>
+      </div>
+
+      <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
+        <input
+          type="checkbox"
+          checked={requiredFilter === true}
+          onChange={(e) => handleRequiredFilterChange(e.target.checked)}
+          style={{height: '1rem', width: '1rem'}}
+        />
+        <div>
+          {renderTable()}
+        </div>
         <div className="mt-4 text-lg">
           Total Rows: {filteredRows.length}
         </div>
