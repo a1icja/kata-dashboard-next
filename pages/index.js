@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
+import getConfig from 'next/config';
+import data from "../data/job_stats.json";
 
-const basePath = "";
+const { publicRuntimeConfig } = getConfig();
+const basePath = publicRuntimeConfig.basePath;
+// const basePath = "";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -11,6 +15,7 @@ export default function Home() {
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
+  const [display, setDisplay] = useState('nightly'); 
 
   const icons = [
     "sunny.svg",
@@ -22,23 +27,20 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
-      );
-      const data = await response.json();
-
-      const jobData = Object.keys(data).map((key) => {
-        const job = data[key];
-        return {
-          name: key,
-          ...job,
-        };
-      });
-
-      setJobs(jobData);
-    };
-
-    fetchData();
+        try {
+          const jobData = Object.keys(data).map((key) => {
+            const job = data[key];
+            return { name: key, ...job };
+          });
+          setJobs(jobData);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        } finally {
+          setLoading(false); // Set loading false whether success or failure
+        }
+      };
+  
+      fetchData();
   }, []);
 
   useEffect(() => {
@@ -59,16 +61,32 @@ export default function Home() {
       );
     }
 
-    // Create rows to set into table.
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      weather: "Sunny",
-    }));
-    setRows(filteredRows);
+    
+    if (display == "pr")
+    {
+      // Create rows to set into table.
+      const filteredRows = filteredJobs.map((job) => ({
+        name: job.name,
+        runs: job.pr_runs,
+        fails: job.pr_fails,
+        skips: job.pr_skips,
+        required: job.required,
+        weather: "Sunny",
+      }));
+      setRows(filteredRows);
+    } else
+    {
+      // Create rows to set into table.
+      const filteredRows = filteredJobs.map((job) => ({
+        name: job.name,
+        runs: job.runs,
+        fails: job.fails,
+        skips: job.skips,
+        required: job.required,
+        weather: "Sunny",
+      }));   
+      setRows(filteredRows);
+    }
     setLoading(false);
   }, [jobs, requiredFilter]);
 
@@ -76,6 +94,11 @@ export default function Home() {
   const handleRequiredFilterChange = (checked) => {
     setRequiredFilter(checked);
   };
+
+  const handleDisplayChange = (value) => {
+    setDisplay(value);
+    console.log(value);
+  }
 
   // Function to toggle row expansion
   const toggleRow = (rowData) => {
@@ -133,7 +156,7 @@ export default function Home() {
   };
 
   const rowExpansionTemplate = (data) => {
-    console.log(data);
+    // console.log(data);
 
     const job = jobs.find((job) => job.name === data.name);
 
@@ -146,22 +169,60 @@ export default function Home() {
       });
     }
 
-    return (
-      <div key={`${job.name}-runs`} className="p-3 ml-8">
-        {runs.map((run) => {
-          const emoji =
-            run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
-          return (
-            <span key={`${job.name}-runs-${run.run_num}`}>
-              <a href={run.url}>
-                {emoji} {run.run_num}
-              </a>
-              &nbsp;&nbsp;&nbsp;&nbsp;
-            </span>
-          );
-        })}
-      </div>
-    );
+    const prs = [];
+    job.pr_nums.forEach((pr_num, index) => {
+      const pr_url = job.pr_urls[index];
+      const pr_res = job.pr_results[index];
+
+    if (!prs.some((pr) => pr.num === pr_num && pr.url === pr_url)) {
+        prs.push({
+          num: pr_num,
+          url: pr_url,
+          res: pr_res,
+        });
+      }
+    });
+
+    if (display == "pr")
+    {
+      return (
+        <div key={`${job.name}-runs`} className="p-3 ml-8"> 
+          {prs.length > 0 ? (
+              prs.map((pr) => {
+                const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
+                return (
+                  <span key={`${job.name}-prs-${pr.num}`}>
+                    <a href={pr.url}>
+                      {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    </a>
+                  </span>
+                )
+              })
+            ) : (
+              <div>No PRs associated with this job</div>
+            )}
+        </div>
+      );
+    }
+    else
+    {
+      return (
+        <div key={`${job.name}-runs`} className="p-3 ml-8">
+          {runs.map((run) => {
+            const emoji =
+              run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
+            return (
+              <span key={`${job.name}-runs-${run.run_num}`}>
+                <a href={run.url}>
+                  {emoji} {run.run_num}
+                </a>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+              </span>
+            );
+          })}
+        </div>
+      );
+    }
   };
 
   const requiredTemplate = (data) => {
@@ -195,6 +256,23 @@ export default function Home() {
           Kata CI Dashboard
         </a>
       </h1>
+      <nav className="w-48 h-screen bg-gray-400 border-10 border-slate-500 fixed top-0 left-0 pt-5">
+        <h2>Display View</h2>
+
+        <input type="radio" name="display" value="nightly" 
+        checked={display === 'nightly'} 
+        onChange={(e) => handleDisplayChange(e.target.value)}></input>
+        <label>Nightly Runs</label>
+        <br></br>
+
+        <input type="radio" name="display" value="pr"
+        checked={display === 'pr'} 
+        onChange={(e) => handleDisplayChange(e.target.value)}></input>
+        <label>PRs</label> 
+
+      </nav>
+      <div className="ml-48">
+
       <DataTable
         value={rows}
         expandedRows={expandedRows}
@@ -224,6 +302,7 @@ export default function Home() {
           sortable
         ></Column>
       </DataTable>
+      </div>
     </div>
   );
 }
