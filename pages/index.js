@@ -3,8 +3,11 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
 import localData from "../data/job_stats.json";
+import getConfig from 'next/config';
 
-const basePath = "";
+const { publicRuntimeConfig } = getConfig();
+const basePath = publicRuntimeConfig.basePath || "";
+// const basePath = "";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -12,7 +15,7 @@ export default function Home() {
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [activeTab, setActiveTab] = useState('nightly');
+  const [display, setDisplay] = useState('nightly'); 
 
   const icons = [
     "sunny.svg",
@@ -23,8 +26,6 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    // const data = await fetchCIData();
-
     const fetchData = async () => {
       let data = {};
       if (process.env.NODE_ENV === "development") {
@@ -54,7 +55,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setLoading(true)
+    setLoading(true);
 
     // Filter based on required tag.
     let filteredJobs = jobs;
@@ -71,6 +72,11 @@ export default function Home() {
       );
     }
 
+    // Collapse rows if display changes
+    useEffect(() => {
+      setExpandedRows([])
+    }, [display]); 
+
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
       name: job.name,
@@ -83,9 +89,10 @@ export default function Home() {
       pr_skips: job.pr_skips,
       weather: "Sunny",
     }));
-    setRows(filteredRows);
+    
+    setRows(filteredRows);  
     setLoading(false);
-  }, [jobs, requiredFilter]);
+  }, [jobs, requiredFilter, display]);
 
 
   const handleRequiredFilterChange = (checked) => {
@@ -94,7 +101,7 @@ export default function Home() {
 
   const getWeatherIcon = (stat) => {
     let fail_rate = 0;
-    if (activeTab === 'nightly') {
+    if (display === 'nightly') {
       fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
     } else {
       fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
@@ -126,9 +133,45 @@ export default function Home() {
     );
   };
 
+  const requiredCheckbox = (
+    <div>
+      <input
+        type="checkbox"
+        checked={requiredFilter === true}
+        onChange={(e) => handleRequiredFilterChange(e.target.checked)}
+        style={{height: '1rem', width: '1rem'}}
+      />
+    </div>
+  );
+
+  const toggleRow = (rowData) => {
+    const isRowExpanded = expandedRows.includes(rowData);
+
+    let updatedExpandedRows;
+    if (isRowExpanded) {
+      updatedExpandedRows = expandedRows.filter((r) => r !== rowData);
+    } else {
+      updatedExpandedRows = [...expandedRows, rowData];
+    }
+
+    setExpandedRows(updatedExpandedRows);
+  };
+
+  // Template for rendering the Name column as a clickable item
+  const nameTemplate = (rowData) => {
+    return (
+      <span
+        onClick={() => toggleRow(rowData)}
+        style={{ cursor: 'pointer' }}
+      >
+        {rowData.name}
+      </span>
+    );
+  };
+
   const rowExpansionTemplate = (data) => {
-    console.log(data);
-  
+    // console.log(data);
+
     const job = jobs.find((job) => job.name === data.name);
   
     // Prepare run data
@@ -157,7 +200,7 @@ export default function Home() {
 
     return (
       <div key={`${job.name}-runs`} className="p-3" style={{ marginLeft: '4.5rem', marginTop: '-2.0rem' }}>
-        {activeTab === 'nightly' && (
+        {display === 'nightly' && (
           <div>
             {runs.map((run) => {
               const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
@@ -172,7 +215,7 @@ export default function Home() {
             })}
           </div>
         )}
-        {activeTab === 'prchecks' && (
+        {display === 'prchecks' && (
           <div>
             {prs.length > 0 ? (
               prs.map((pr) => {
@@ -204,11 +247,14 @@ export default function Home() {
       loading={loading}
     >
       <Column expander style={{ width: "5rem" }} />
-      <Column field="name" header="Name" filter sortable />
-      <Column field={activeTab === 'nightly' ? 'runs' : 'pr_runs'} header="Runs" sortable />
-      <Column field={activeTab === 'nightly' ? 'fails' : 'pr_fails'} header="Fails" sortable />
-      <Column field={activeTab === 'nightly' ? 'skips' : 'pr_skips'} header="Skips" sortable />
+      <Column field="name" header="Name" body={nameTemplate} filter sortable 
+      filterHeader="Filter by Name" 
+      filterPlaceholder="Search..."/>
+      <Column header={requiredCheckbox}></Column>
       <Column field="required" header="Required" sortable/>
+      <Column field={display === 'nightly' ? 'runs' : 'pr_runs'} header="Runs" sortable />
+      <Column field={display === 'nightly' ? 'fails' : 'pr_fails'} header="Fails" sortable />
+      <Column field={display === 'nightly' ? 'skips' : 'pr_skips'} header="Skips" sortable />
       <Column field="weather" header="Weather" body={weatherTemplate} sortable />
     </DataTable>
   );
@@ -228,29 +274,21 @@ export default function Home() {
       <div className="flex justify-between items-center mt-4 ml-4">
         <div className="tabs">
           <button
-            className={`tab px-4 py-2 border-b-2 ${activeTab === 'nightly' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
-            onClick={() => setActiveTab('nightly')}
+            className={`tab px-4 py-2 border-b-2 ${display === 'nightly' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
+            onClick={() => setDisplay('nightly')}
           >
             Nightly Jobs
           </button>
           <button
-            className={`tab px-4 py-2 border-b-2 ${activeTab === 'prchecks' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
-            onClick={() => setActiveTab('prchecks')}
+            className={`tab px-4 py-2 border-b-2 ${display === 'prchecks' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
+            onClick={() => setDisplay('prchecks')}
           >
             PR Checks
           </button>
         </div>
-
-        <div>
-          Required Jobs Only: &nbsp;
-          <input
-            type="checkbox"
-            checked={requiredFilter === true}
-            onChange={(e) => handleRequiredFilterChange(e.target.checked)}
-            className="mr-4"
-          />
-        </div>
       </div>
+
+
 
       <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
         <div>
