@@ -72,6 +72,11 @@ export default function Home() {
       );
     }
 
+    // Collapse rows if display changes
+    useEffect(() => {
+      setExpandedRows([])
+    }, [display]); 
+
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
       name: job.name,
