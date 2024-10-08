@@ -6,7 +6,7 @@ import localData from "../data/job_stats.json";
 import getConfig from 'next/config';
 
 const { publicRuntimeConfig } = getConfig();
-const basePath = publicRuntimeConfig.basePath;
+const basePath = publicRuntimeConfig.basePath || "";
 // const basePath = "";
 
 export default function Home() {
