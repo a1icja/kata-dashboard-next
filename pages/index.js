@@ -55,7 +55,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    console.log("triggered");
     setLoading(true);
 
     // Filter based on required tag.
