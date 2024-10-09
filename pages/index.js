@@ -3,7 +3,7 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
 // import localData from "../data/job_stats.json";
-import getConfig from 'next/config';
+// import getConfig from 'next/config';
 
 // const { publicRuntimeConfig } = getConfig();
 // const basePath = publicRuntimeConfig.basePath || "";
