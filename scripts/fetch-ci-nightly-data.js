@@ -66,7 +66,6 @@ var fetch_count = 0;
 // Perform a github API request for workflow runs.
 async function fetch_workflow_runs() {
   fetch_count++;
-  console.log(`fetch ${fetch_count}: ${ci_nightly_runs_url}`);
   return fetch(ci_nightly_runs_url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -81,7 +80,6 @@ async function fetch_workflow_runs() {
 async function fetch_pull_requests() {
   fetch_count++;
   const prs_url = `${pull_requests_url}${pr_count}`;
-  console.log(`fetch ${fetch_count}: ${prs_url}`);
   return fetch(prs_url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -115,7 +113,6 @@ function get_job_data(run) {
     fetch_count++;
     var jobs_url =
       run["jobs_url"] + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    console.log(`fetch ${fetch_count}: ${jobs_url}`);
     return fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
@@ -170,7 +167,6 @@ function get_check_data(pr) {
     fetch_count++;
     var checks_url = 
       pr_checks_url + prs_with_check_data["commit_sha"] + "/check-runs" + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    console.log(`fetch ${fetch_count}: ${checks_url}`);
     return fetch(checks_url, {  
       headers: {
         Accept: "application/vnd.github+json",
