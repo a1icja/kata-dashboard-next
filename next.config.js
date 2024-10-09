@@ -11,7 +11,4 @@ module.exports = {
     }
     return config;
   },
-  // publicRuntimeConfig: {
-  //   basePath: '/kata-dashboard-next',
-  // },
 }
