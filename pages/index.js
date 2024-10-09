@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from 'next/image';
-import localData from "../data/job_stats.json";
+// import localData from "../data/job_stats.json";
 import getConfig from 'next/config';
 
 const { publicRuntimeConfig } = getConfig();
@@ -28,15 +28,15 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       let data = {};
-      if (process.env.NODE_ENV === "development") {
-        data = localData;
-      } else {
-        console.log("test")
-        const response = await fetch(
-          "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
-        );
-        data = await response.json();
-      }
+      // if (process.env.NODE_ENV === "development") {
+      //   data = localData;
+      // } else {
+      console.log("test")
+      const response = await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      );
+      data = await response.json();
+      // }
 
       try {
         const jobData = Object.keys(data).map((key) => {
