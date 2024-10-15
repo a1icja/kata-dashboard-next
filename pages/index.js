@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import Image from 'next/image';
+import Image from "next/image";
 // import localData from "../data/job_stats.json";
-// import getConfig from 'next/config';
-
-// const { publicRuntimeConfig } = getConfig();
-// const basePath = publicRuntimeConfig.basePath || "";
-const basePath = "";
+import { basePath } from "../next.config.js";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -15,7 +11,7 @@ export default function Home() {
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [display, setDisplay] = useState('nightly'); 
+  const [display, setDisplay] = useState("nightly");
 
   const icons = [
     "sunny.svg",
@@ -31,7 +27,7 @@ export default function Home() {
       // if (process.env.NODE_ENV === "development") {
       //   data = localData;
       // } else {
-      console.log("test")
+      console.log("test");
       const response = await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
@@ -60,15 +56,15 @@ export default function Home() {
     // Filter based on required tag.
     let filteredJobs = jobs;
     if (requiredFilter) {
-      filteredJobs = jobs.filter(job => job.required);
+      filteredJobs = jobs.filter((job) => job.required);
     }
 
     // Filter based on name from URL
     const url = new URLSearchParams(window.location.search);
     const searchParam = url.get("search");
     if (searchParam) {
-      filteredJobs = filteredJobs.filter(job => 
-          job.name.toLowerCase().includes(searchParam.toLowerCase())
+      filteredJobs = filteredJobs.filter((job) =>
+        job.name.toLowerCase().includes(searchParam.toLowerCase())
       );
     }
 
@@ -84,15 +80,15 @@ export default function Home() {
       pr_skips: job.pr_skips,
       weather: "Sunny",
     }));
-    
-    setRows(filteredRows);  
+
+    setRows(filteredRows);
     setLoading(false);
   }, [jobs, requiredFilter, display]);
 
   // Collapse rows if display changes
   useEffect(() => {
-    setExpandedRows([])
-  }, [display]); 
+    setExpandedRows([]);
+  }, [display]);
 
   const handleRequiredFilterChange = (checked) => {
     setRequiredFilter(checked);
@@ -100,7 +96,7 @@ export default function Home() {
 
   const getWeatherIcon = (stat) => {
     let fail_rate = 0;
-    if (display === 'nightly') {
+    if (display === "nightly") {
       fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
     } else {
       fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
@@ -125,7 +121,7 @@ export default function Home() {
           src={`${basePath}/${icon}`}
           alt="weather"
           width={32}
-          height={32} 
+          height={32}
           // priority
         />
       </div>
@@ -138,7 +134,7 @@ export default function Home() {
         type="checkbox"
         checked={requiredFilter === true}
         onChange={(e) => handleRequiredFilterChange(e.target.checked)}
-        style={{height: '1rem', width: '1rem'}}
+        style={{ height: "1rem", width: "1rem" }}
       />
     </div>
   );
@@ -159,10 +155,7 @@ export default function Home() {
   // Template for rendering the Name column as a clickable item
   const nameTemplate = (rowData) => {
     return (
-      <span
-        onClick={() => toggleRow(rowData)}
-        style={{ cursor: 'pointer' }}
-      >
+      <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
         {rowData.name}
       </span>
     );
@@ -172,7 +165,7 @@ export default function Home() {
     // console.log(data);
 
     const job = jobs.find((job) => job.name === data.name);
-  
+
     // Prepare run data
     const runs = [];
     for (let i = 0; i < job.runs; i++) {
@@ -182,7 +175,7 @@ export default function Home() {
         url: job.urls[i],
       });
     }
-  
+
     const prs = [];
     job.pr_nums.forEach((pr_num, index) => {
       const pr_url = job.pr_urls[index];
@@ -198,11 +191,20 @@ export default function Home() {
     });
 
     return (
-      <div key={`${job.name}-runs`} className="p-3" style={{ marginLeft: '4.5rem', marginTop: '-2.0rem' }}>
-        {display === 'nightly' && (
+      <div
+        key={`${job.name}-runs`}
+        className="p-3"
+        style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
+      >
+        {display === "nightly" && (
           <div>
             {runs.map((run) => {
-              const emoji = run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️";
+              const emoji =
+                run.result === "Pass"
+                  ? "✅"
+                  : run.result === "Fail"
+                  ? "❌"
+                  : "⚠️";
               return (
                 <span key={`${job.name}-runs-${run.run_num}`}>
                   <a href={run.url}>
@@ -214,18 +216,19 @@ export default function Home() {
             })}
           </div>
         )}
-        {display === 'prchecks' && (
+        {display === "prchecks" && (
           <div>
             {prs.length > 0 ? (
               prs.map((pr) => {
-                const emoji = pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
+                const emoji =
+                  pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
                 return (
                   <span key={`${job.name}-prs-${pr.num}`}>
                     <a href={pr.url}>
                       {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                     </a>
                   </span>
-                )
+                );
               })
             ) : (
               <div>No PRs associated with this job</div>
@@ -246,15 +249,38 @@ export default function Home() {
       loading={loading}
     >
       <Column expander style={{ width: "5rem" }} />
-      <Column field="name" header="Name" body={nameTemplate} filter sortable 
-      filterHeader="Filter by Name" 
-      filterPlaceholder="Search..."/>
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate}
+        filter
+        sortable
+        filterHeader="Filter by Name"
+        filterPlaceholder="Search..."
+      />
       <Column header={requiredCheckbox}></Column>
-      <Column field="required" header="Required" sortable/>
-      <Column field={display === 'nightly' ? 'runs' : 'pr_runs'} header="Runs" sortable />
-      <Column field={display === 'nightly' ? 'fails' : 'pr_fails'} header="Fails" sortable />
-      <Column field={display === 'nightly' ? 'skips' : 'pr_skips'} header="Skips" sortable />
-      <Column field="weather" header="Weather" body={weatherTemplate} sortable />
+      <Column field="required" header="Required" sortable />
+      <Column
+        field={display === "nightly" ? "runs" : "pr_runs"}
+        header="Runs"
+        sortable
+      />
+      <Column
+        field={display === "nightly" ? "fails" : "pr_fails"}
+        header="Fails"
+        sortable
+      />
+      <Column
+        field={display === "nightly" ? "skips" : "pr_skips"}
+        header="Skips"
+        sortable
+      />
+      <Column
+        field="weather"
+        header="Weather"
+        body={weatherTemplate}
+        sortable
+      />
     </DataTable>
   );
 
@@ -273,29 +299,31 @@ export default function Home() {
       <div className="flex justify-between items-center mt-4 ml-4">
         <div className="tabs">
           <button
-            className={`tab px-4 py-2 border-b-2 ${display === 'nightly' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
-            onClick={() => setDisplay('nightly')}
+            className={`tab px-4 py-2 border-b-2 ${
+              display === "nightly"
+                ? "border-blue-500 bg-white"
+                : "border-gray-300"
+            } focus:outline-none`}
+            onClick={() => setDisplay("nightly")}
           >
             Nightly Jobs
           </button>
           <button
-            className={`tab px-4 py-2 border-b-2 ${display === 'prchecks' ? 'border-blue-500 bg-white' : 'border-gray-300'} focus:outline-none`}
-            onClick={() => setDisplay('prchecks')}
+            className={`tab px-4 py-2 border-b-2 ${
+              display === "prchecks"
+                ? "border-blue-500 bg-white"
+                : "border-gray-300"
+            } focus:outline-none`}
+            onClick={() => setDisplay("prchecks")}
           >
             PR Checks
           </button>
         </div>
       </div>
 
-
-
       <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
-        <div>
-          {renderTable()}
-        </div>
-        <div className="mt-4 text-lg">
-          Total Rows: {rows.length}
-        </div>
+        <div>{renderTable()}</div>
+        <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
     </div>
   );
