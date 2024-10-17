@@ -58,54 +58,54 @@ export default function Home() {
       filteredJobs = jobs.filter((job) => job.required);
     }
 
-    // Filter based on name from URL
+    // Get the current URL
     const url = window.location.href;
-    console.log("url: " + url);
 
+    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
+    // Thus, split on ? to isolate each area
     const parts = url.split('?');
 
-
-    for(let i=1; i<parts.length; i++){
-      console.log("parts: " + parts[i]);
+    // For the operator, and = match all / or = match any
+    console.log(parts[1]);
+    
+    // Iterate through ?search=matchMode&value/
+    for(let i=2; i<parts.length; i++){
+      // Rule = matchMode&value/
       const rule= parts[i].split('=')[1];
-      const operator = rule.split('&')[0];
+      
+      const matchMode = rule.split('&')[0];
       const value = rule.split('&')[1];
-      const decoded = decodeURIComponent(value);
+
+      // Remove trailing '/' from search
+      const decoded = decodeURIComponent(value).replace('/', '');
 
       // Not case sensitive now, remove toLowerCase to make it so. 
-      if (operator === 'contains'){
+      if (matchMode === 'contains'){
         filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase().includes(value.toLowerCase())
-        );
-      }else if(operator === 'notContains'){
+          job.name.toLowerCase().includes(decoded.toLowerCase())
+      );
+      }else if(matchMode === 'notContains'){
         filteredJobs = filteredJobs.filter((job) =>
-          !job.name.toLowerCase().includes(value.toLowerCase())
+          !job.name.toLowerCase().includes(decoded.toLowerCase())
         );
-      }else if(operator === 'equals'){
+      }else if(matchMode === 'equals'){
         filteredJobs = filteredJobs.filter((job) =>
           job.name.toLowerCase() === decoded.toLowerCase()
         );
-      }else if(operator === 'notEquals'){
+      }else if(matchMode === 'notEquals'){
         filteredJobs = filteredJobs.filter((job) =>
           job.name.toLowerCase() !== decoded.toLowerCase()
         );
-      }else if(operator === 'startsWith'){
+      }else if(matchMode === 'startsWith'){
         filteredJobs = filteredJobs.filter((job) =>
           job.name.toLowerCase().startsWith(decoded.toLowerCase())
         );
-      }else if(operator === 'endsWith'){
+      }else if(matchMode === 'endsWith'){
         filteredJobs = filteredJobs.filter((job) =>
           job.name.toLowerCase().endsWith(decoded.toLowerCase())
         );
       }
     }
-
-    // console.log("searchParam: " + searchParam);
-    // if (searchParam) {
-    //   filteredJobs = filteredJobs.filter((job) =>
-    //     job.name.toLowerCase().includes(searchParam.toLowerCase())
-    //   );
-    // }
 
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
@@ -277,21 +277,18 @@ export default function Home() {
   };
 
   const handleFilterApply = (e) => {
-    const constraints = e.constraints.constraints; // Get constraints
-
-    // Assuming you want to navigate to /your-path?filter=value
-    if (constraints[0].value) {
-      let path = ''; // Construct the new path with search parameter
-      for (const c of constraints){
+    // If the first value isn't null, we must apply the search.
+    if (e.constraints.constraints[0].value) {
+      // Start the path with /?operator   (and/or)
+      let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
+      //Iterate through all the constraints, appending each matchMode/value pair to the URL
+      for (const c of e.constraints.constraints){
         path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`
       }
-      const value = constraints[0].value; // Get the value from the first constraint
-      
       // Update URL
       window.location.href = path;
     }
   };
-
 
   const renderTable = () => (
     <DataTable
@@ -312,8 +309,6 @@ export default function Home() {
         sortable
         onFilterApplyClick={(e) => handleFilterApply(e)}
         maxConstraints={4}
-        // showFilterMatchModes = {false} // Show Starts with/Contains/etc.
-        showFilterOperator = {false}      // Show Match Any/All
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
