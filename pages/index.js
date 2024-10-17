@@ -27,7 +27,6 @@ export default function Home() {
       // if (process.env.NODE_ENV === "development") {
       //   data = localData;
       // } else {
-      console.log("test");
       const response = await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
@@ -162,8 +161,6 @@ export default function Home() {
   };
 
   const rowExpansionTemplate = (data) => {
-    // console.log(data);
-
     const job = jobs.find((job) => job.name === data.name);
 
     // Prepare run data
@@ -239,6 +236,25 @@ export default function Home() {
     );
   };
 
+  const handleFilterApply = (e) => {
+    
+    // console.log("printing: ")
+    // console.log(e)
+
+    const constraints = e.constraints.constraints; // Get constraints
+
+    // Assuming you want to navigate to /your-path?filter=value
+    if (constraints[0].value) {
+
+      const value = constraints[0].value; // Get the value from the first constraint
+      const path = `/?search=${encodeURIComponent(value)}`; // Construct the new path with search parameter
+      
+      // Update URL
+      window.location.href = path;
+    }
+  };
+
+
   const renderTable = () => (
     <DataTable
       value={rows}
@@ -246,7 +262,9 @@ export default function Home() {
       stripedRows
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
+      // onFilter={(e) => handleFilterApply(e)}
       loading={loading}
+      emptyMessage="No results found." 
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -255,6 +273,8 @@ export default function Home() {
         body={nameTemplate}
         filter
         sortable
+        // onFilter={(e) => handleFilterApply(e)}
+        onFilterApplyClick={(e) => handleFilterApply(e)}
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
