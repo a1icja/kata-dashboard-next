@@ -27,7 +27,6 @@ export default function Home() {
       // if (process.env.NODE_ENV === "development") {
       //   data = localData;
       // } else {
-      console.log("test");
       const response = await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
@@ -50,6 +49,47 @@ export default function Home() {
     fetchData();
   }, []);
 
+  const testRules  = (name, parts) => {
+    for(let i=2; i<parts.length; i++){
+      // Rule = matchMode&value/
+      const rule= parts[i].split('=')[1];
+  
+      const matchMode = rule.split('&')[0];
+      const value = rule.split('&')[1];
+
+      // Remove trailing '/' from search
+      const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
+
+      if (matchMode === 'contains'){
+        if(name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'notContains'){
+        if(!name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'equals'){
+        if(name === decoded){
+          return true;
+        }
+      }else if(matchMode === 'notEquals'){
+        if(name !== decoded){
+          return true;
+        }
+      }else if(matchMode === 'startsWith'){
+        if(name.startsWith(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'endsWith'){
+        if(name.endsWith(decoded)){
+          return true;
+        }
+      }
+    }
+    return false;
+    
+  }
+
   useEffect(() => {
     setLoading(true);
 
@@ -59,14 +99,62 @@ export default function Home() {
       filteredJobs = jobs.filter((job) => job.required);
     }
 
-    // Filter based on name from URL
-    const url = new URLSearchParams(window.location.search);
-    const searchParam = url.get("search");
-    if (searchParam) {
+    // Get the current URL
+    const url = window.location.href;
+
+    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
+    // Thus, split on ? to isolate each area
+    const parts = url.split('?');
+
+    // For the operator, and = match all / or = match any
+    if(parts[1] === "and/"){
+      // Iterate through ?search=matchMode&value/
+      for(let i=2; i<parts.length; i++){
+        // Rule = matchMode&value/
+        const rule= parts[i].split('=')[1];
+        
+        const matchMode = rule.split('&')[0];
+        const value = rule.split('&')[1];
+
+        // Remove trailing '/' from search
+        const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
+
+        // Not case sensitive now, remove toLowerCase to make it so. 
+        if (matchMode === 'contains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().includes(decoded)
+        );
+        }else if(matchMode === 'notContains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            !job.name.toLowerCase().includes(decoded)
+          );
+        }else if(matchMode === 'equals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() === decoded
+          );
+        }else if(matchMode === 'notEquals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() !== decoded
+          );
+        }else if(matchMode === 'startsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().startsWith(decoded)
+          );
+        }else if(matchMode === 'endsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().endsWith(decoded)
+          );
+        }
+      }
+    }else if(parts[1] === "or/"){
       filteredJobs = filteredJobs.filter((job) =>
-        job.name.toLowerCase().includes(searchParam.toLowerCase())
+        testRules(job.name.toLowerCase(), parts)
       );
+      // for each job, test all rules
+      // test(job.name, rules) --> for each rule, test. return true if any, else false. 
     }
+    
+    
 
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
@@ -168,8 +256,6 @@ export default function Home() {
   };
 
   const rowExpansionTemplate = (data) => {
-    // console.log(data);
-
     const job = jobs.find((job) => job.name === data.name);
 
     // Prepare run data
@@ -245,6 +331,20 @@ export default function Home() {
     );
   };
 
+  const handleFilterApply = (e) => {
+    // If the first value isn't null, we must apply the search.
+    if (e.constraints.constraints[0].value) {
+      // Start the path with /?operator   (and/or)
+      let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
+      //Iterate through all the constraints, appending each matchMode/value pair to the URL
+      for (const c of e.constraints.constraints){
+        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`
+      }
+      // Update URL
+      window.location.href = path;
+    }
+  };
+
   const renderTable = () => (
     <DataTable
       value={rows}
@@ -253,6 +353,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
+      emptyMessage="No results found." 
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -261,6 +362,8 @@ export default function Home() {
         body={nameTemplate}
         filter
         sortable
+        onFilterApplyClick={(e) => handleFilterApply(e)}
+        maxConstraints={4}
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
