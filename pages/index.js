@@ -277,27 +277,14 @@ export default function Home() {
   };
 
   const handleFilterApply = (e) => {
-    
-    // console.log("printing: ")
-    // console.log(e)
-
     const constraints = e.constraints.constraints; // Get constraints
-
 
     // Assuming you want to navigate to /your-path?filter=value
     if (constraints[0].value) {
       let path = ''; // Construct the new path with search parameter
-
       for (const c of constraints){
-        console.log(c)
-        console.log(c.value)
-        console.log(c.matchMode)
-
-        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value)}`
-
+        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`
       }
-      // console.log(path)
-
       const value = constraints[0].value; // Get the value from the first constraint
       
       // Update URL
@@ -324,9 +311,9 @@ export default function Home() {
         filter
         sortable
         onFilterApplyClick={(e) => handleFilterApply(e)}
-        
-        // showFilterMatchModes = {false} // Show Match Any/All
-        showFilterOperator = {false}      // Show Starts with/Contains/etc.
+        maxConstraints={4}
+        // showFilterMatchModes = {false} // Show Starts with/Contains/etc.
+        showFilterOperator = {false}      // Show Match Any/All
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
