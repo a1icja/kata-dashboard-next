@@ -49,6 +49,50 @@ export default function Home() {
     fetchData();
   }, []);
 
+  const testRules  = (name, parts) => {
+
+    console.log("testRules: "+name)
+    console.log("testRules: "+parts.length)
+    for(let i=2; i<parts.length; i++){
+      // Rule = matchMode&value/
+      const rule= parts[i].split('=')[1];
+  
+      const matchMode = rule.split('&')[0];
+      const value = rule.split('&')[1];
+
+      // Remove trailing '/' from search
+      const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
+
+      if (matchMode === 'contains'){
+        if(name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'notContains'){
+        if(!name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'equals'){
+        if(name === decoded){
+          return true;
+        }
+      }else if(matchMode === 'notEquals'){
+        if(name !== decoded){
+          return true;
+        }
+      }else if(matchMode === 'startsWith'){
+        if(name.startsWith(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'endsWith'){
+        if(name.endsWith(decoded)){
+          return true;
+        }
+      }
+    }
+    return false;
+    
+  }
+
   useEffect(() => {
     setLoading(true);
 
@@ -66,46 +110,56 @@ export default function Home() {
     const parts = url.split('?');
 
     // For the operator, and = match all / or = match any
-    console.log(parts[1]);
-    
-    // Iterate through ?search=matchMode&value/
-    for(let i=2; i<parts.length; i++){
-      // Rule = matchMode&value/
-      const rule= parts[i].split('=')[1];
-      
-      const matchMode = rule.split('&')[0];
-      const value = rule.split('&')[1];
+    if(parts[1] === "and/"){
+      // Iterate through ?search=matchMode&value/
+      for(let i=2; i<parts.length; i++){
+        // Rule = matchMode&value/
+        const rule= parts[i].split('=')[1];
+        
+        const matchMode = rule.split('&')[0];
+        const value = rule.split('&')[1];
 
-      // Remove trailing '/' from search
-      const decoded = decodeURIComponent(value).replace('/', '');
+        // Remove trailing '/' from search
+        const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
 
-      // Not case sensitive now, remove toLowerCase to make it so. 
-      if (matchMode === 'contains'){
-        filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase().includes(decoded.toLowerCase())
-      );
-      }else if(matchMode === 'notContains'){
-        filteredJobs = filteredJobs.filter((job) =>
-          !job.name.toLowerCase().includes(decoded.toLowerCase())
+        // Not case sensitive now, remove toLowerCase to make it so. 
+        if (matchMode === 'contains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().includes(decoded)
         );
-      }else if(matchMode === 'equals'){
-        filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase() === decoded.toLowerCase()
-        );
-      }else if(matchMode === 'notEquals'){
-        filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase() !== decoded.toLowerCase()
-        );
-      }else if(matchMode === 'startsWith'){
-        filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase().startsWith(decoded.toLowerCase())
-        );
-      }else if(matchMode === 'endsWith'){
-        filteredJobs = filteredJobs.filter((job) =>
-          job.name.toLowerCase().endsWith(decoded.toLowerCase())
-        );
+        }else if(matchMode === 'notContains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            !job.name.toLowerCase().includes(decoded)
+          );
+        }else if(matchMode === 'equals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() === decoded
+          );
+        }else if(matchMode === 'notEquals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() !== decoded
+          );
+        }else if(matchMode === 'startsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().startsWith(decoded)
+          );
+        }else if(matchMode === 'endsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().endsWith(decoded)
+          );
+        }
       }
+    }else{
+      console.log("or: "+ parts[1]);
+
+      filteredJobs = filteredJobs.filter((job) =>
+        testRules(job.name.toLowerCase(), parts)
+      );
+      // for each job, test all rules
+      // test(job.name, rules) --> for each rule, test. return true if any, else false. 
     }
+    
+    
 
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
