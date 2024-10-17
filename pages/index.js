@@ -59,13 +59,53 @@ export default function Home() {
     }
 
     // Filter based on name from URL
-    const url = new URLSearchParams(window.location.search);
-    const searchParam = url.get("search");
-    if (searchParam) {
-      filteredJobs = filteredJobs.filter((job) =>
-        job.name.toLowerCase().includes(searchParam.toLowerCase())
-      );
+    const url = window.location.href;
+    console.log("url: " + url);
+
+    const parts = url.split('?');
+
+
+    for(let i=1; i<parts.length; i++){
+      console.log("parts: " + parts[i]);
+      const rule= parts[i].split('=')[1];
+      const operator = rule.split('&')[0];
+      const value = rule.split('&')[1];
+      const decoded = decodeURIComponent(value);
+
+      // Not case sensitive now, remove toLowerCase to make it so. 
+      if (operator === 'contains'){
+        filteredJobs = filteredJobs.filter((job) =>
+          job.name.toLowerCase().includes(value.toLowerCase())
+        );
+      }else if(operator === 'notContains'){
+        filteredJobs = filteredJobs.filter((job) =>
+          !job.name.toLowerCase().includes(value.toLowerCase())
+        );
+      }else if(operator === 'equals'){
+        filteredJobs = filteredJobs.filter((job) =>
+          job.name.toLowerCase() === decoded.toLowerCase()
+        );
+      }else if(operator === 'notEquals'){
+        filteredJobs = filteredJobs.filter((job) =>
+          job.name.toLowerCase() !== decoded.toLowerCase()
+        );
+      }else if(operator === 'startsWith'){
+        filteredJobs = filteredJobs.filter((job) =>
+          job.name.toLowerCase().startsWith(decoded.toLowerCase())
+        );
+      }else if(operator === 'endsWith'){
+        filteredJobs = filteredJobs.filter((job) =>
+          job.name.toLowerCase().endsWith(decoded.toLowerCase())
+        );
+      }
     }
+
+    // console.log("searchParam: " + searchParam);
+    // if (searchParam) {
+    //   filteredJobs = filteredJobs.filter((job) =>
+    //     job.name.toLowerCase().includes(searchParam.toLowerCase())
+    //   );
+    // }
 
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
@@ -243,11 +283,22 @@ export default function Home() {
 
     const constraints = e.constraints.constraints; // Get constraints
 
+
     // Assuming you want to navigate to /your-path?filter=value
     if (constraints[0].value) {
+      let path = ''; // Construct the new path with search parameter
+
+      for (const c of constraints){
+        console.log(c)
+        console.log(c.value)
+        console.log(c.matchMode)
+
+        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value)}`
+
+      }
+      // console.log(path)
 
       const value = constraints[0].value; // Get the value from the first constraint
-      const path = `/?search=${encodeURIComponent(value)}`; // Construct the new path with search parameter
       
       // Update URL
       window.location.href = path;
@@ -262,7 +313,6 @@ export default function Home() {
       stripedRows
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
-      // onFilter={(e) => handleFilterApply(e)}
       loading={loading}
       emptyMessage="No results found." 
     >
@@ -273,8 +323,10 @@ export default function Home() {
         body={nameTemplate}
         filter
         sortable
-        // onFilter={(e) => handleFilterApply(e)}
         onFilterApplyClick={(e) => handleFilterApply(e)}
+        
+        // showFilterMatchModes = {false} // Show Match Any/All
+        showFilterOperator = {false}      // Show Starts with/Contains/etc.
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
