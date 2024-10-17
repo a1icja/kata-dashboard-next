@@ -50,9 +50,6 @@ export default function Home() {
   }, []);
 
   const testRules  = (name, parts) => {
-
-    console.log("testRules: "+name)
-    console.log("testRules: "+parts.length)
     for(let i=2; i<parts.length; i++){
       // Rule = matchMode&value/
       const rule= parts[i].split('=')[1];
@@ -149,9 +146,7 @@ export default function Home() {
           );
         }
       }
-    }else{
-      console.log("or: "+ parts[1]);
-
+    }else if(parts[1] === "or/"){
       filteredJobs = filteredJobs.filter((job) =>
         testRules(job.name.toLowerCase(), parts)
       );
