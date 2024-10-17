@@ -108,6 +108,12 @@ export default function Home() {
       console.assert(fail_rate == 1.0);
       idx -= 1;
     }
+    
+    // This error checks if there are zero runs.
+    // Currently, will displays stormy weather.
+    if(isNaN(idx)){
+      idx = 4;
+    }
 
     return icons[idx];
   };
