@@ -11,6 +11,7 @@ export default function Home() {
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
+  const [keepSearch, setKeepSearch] = useState(false);
   const [display, setDisplay] = useState("nightly");
 
   const icons = [
@@ -28,7 +29,8 @@ export default function Home() {
       //   data = localData;
       // } else {
       const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
+        "/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
       data = await response.json();
       // }
@@ -58,7 +60,10 @@ export default function Home() {
       const value = rule.split('&')[1];
 
       // Remove trailing '/' from search
-      const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
+      const decoded = (
+        decodeURIComponent(value)
+        .replace('/', '')
+      ).trim().toLowerCase();
 
       if (matchMode === 'contains'){
         if(name.includes(decoded)){
@@ -87,7 +92,6 @@ export default function Home() {
       }
     }
     return false;
-    
   }
 
   useEffect(() => {
@@ -117,7 +121,10 @@ export default function Home() {
         const value = rule.split('&')[1];
 
         // Remove trailing '/' from search
-        const decoded = decodeURIComponent(value).replace('/', '').toLowerCase();
+        const decoded = (
+          decodeURIComponent(value)
+          .replace('/', '')
+        ).trim().toLowerCase();
 
         // Not case sensitive now, remove toLowerCase to make it so. 
         if (matchMode === 'contains'){
@@ -146,16 +153,12 @@ export default function Home() {
           );
         }
       }
-    }else if(parts[1] === "or/"){
+    } else if(parts[1] === "or/"){
       filteredJobs = filteredJobs.filter((job) =>
         testRules(job.name.toLowerCase(), parts)
       );
-      // for each job, test all rules
-      // test(job.name, rules) --> for each rule, test. return true if any, else false. 
     }
     
-    
-
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
       name: job.name,
@@ -168,7 +171,6 @@ export default function Home() {
       pr_skips: job.pr_skips,
       weather: "Sunny",
     }));
-
     setRows(filteredRows);
     setLoading(false);
   }, [jobs, requiredFilter, display]);
@@ -178,10 +180,6 @@ export default function Home() {
     setExpandedRows([]);
   }, [display]);
 
-  const handleRequiredFilterChange = (checked) => {
-    setRequiredFilter(checked);
-  };
-
   const getWeatherIcon = (stat) => {
     let fail_rate = 0;
     if (display === "nightly") {
@@ -189,7 +187,8 @@ export default function Home() {
     } else {
       fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
     }
-    var idx = Math.floor((fail_rate * 10) / 2); // e.g. failing 3/9 runs is .33, or idx=1
+    // e.g. failing 3/9 runs is .33, or idx=1
+    var idx = Math.floor((fail_rate * 10) / 2); 
     if (idx == icons.length) {
       // edge case: if 100% failures, then we go past the end of icons[]
       // back the idx down by 1
@@ -202,7 +201,6 @@ export default function Home() {
 
   const weatherTemplate = (data) => {
     const icon = getWeatherIcon(data);
-
     return (
       <div>
         <Image
@@ -221,7 +219,7 @@ export default function Home() {
       <input
         type="checkbox"
         checked={requiredFilter === true}
-        onChange={(e) => handleRequiredFilterChange(e.target.checked)}
+        onChange={(e) => setRequiredFilter(e.target.checked)}
         style={{ height: "1rem", width: "1rem" }}
       />
     </div>
@@ -329,11 +327,27 @@ export default function Home() {
     // If the first value isn't null, we must apply the search.
     if (e.constraints.constraints[0].value) {
       // Start the path with /?operator   (and/or)
+      
+      // Will always use the new operator.
       let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
-      //Iterate through all the constraints, appending each matchMode/value pair to the URL
-      for (const c of e.constraints.constraints){
-        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`
+
+      // If checked, it will keep the search rules from the URL.
+      if(keepSearch){
+        const url = window.location.href;
+        const parts = url.split('?');
+        if(parts.length > 2){
+          for(let i=2; i<parts.length; i++){
+            path += `/?${parts[i].replace('/', '').trim()}`
+          }
+        }
       }
+      
+      // Append each matchMode/value pair to the URL.
+      for (const c of e.constraints.constraints){
+        path += `/?search=${encodeURIComponent(c.matchMode)}&` + 
+        `${encodeURIComponent(c.value.trim())}`;
+      }
+
       // Update URL
       window.location.href = path;
     }
@@ -389,9 +403,11 @@ export default function Home() {
 
   return (
     <div className="text-center">
-      <h1 className="text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500">
+      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit" +
+                     "hover:text-blue-500"}>
         <a
-          href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
+          href={"https://github.com/kata-containers/kata-containers/" +
+          "actions/workflows/ci-nightly.yaml"}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -399,13 +415,13 @@ export default function Home() {
         </a>
       </h1>
 
-      <div className="flex justify-between items-center mt-4 ml-4">
-        <div className="tabs">
+      <div className="flex justify-center mt-4 ml-4">
+        <div className="tabs mr-10">
           <button
             className={`tab px-4 py-2 border-b-2 ${
               display === "nightly"
-                ? "border-blue-500 bg-white"
-                : "border-gray-300"
+                ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("nightly")}
           >
@@ -414,17 +430,42 @@ export default function Home() {
           <button
             className={`tab px-4 py-2 border-b-2 ${
               display === "prchecks"
-                ? "border-blue-500 bg-white"
-                : "border-gray-300"
+                ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("prchecks")}
           >
             PR Checks
-          </button>
+          </button> 
         </div>
+
+        <button
+            className={`tab px-4 py-2 border-b-2 ${
+              keepSearch ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
+            } focus:outline-none`}
+            onClick={(e) => setKeepSearch(!keepSearch)}
+          >
+            Keep URL Search Terms
+          </button>
+
+   
+{/*         
+        <div className="flex items-center mr-4 border-4 border-blue-500 py-3 pl-5 rounded-full">
+          <label className="mr-2 text-sm font-bold">Keep URL Search Terms</label>
+          <input
+            className="mr-6"
+            type="checkbox"
+            checked={keepSearch === true}
+            onChange={(e) => setKeepSearch(e.target.checked)}
+            style={{ height: "1rem", width: "1rem" }}
+          />
+        </div> */}
       </div>
 
-      <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
+      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto" +
+                       "bg-surface-ground font-normal text-text-color" +
+                       "antialiased select-text"}>
         <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
