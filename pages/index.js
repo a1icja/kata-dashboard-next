@@ -170,7 +170,7 @@ export default function Home() {
       pr_runs: job.pr_runs,
       pr_fails: job.pr_fails,
       pr_skips: job.pr_skips,
-      weather: "Sunny",
+      weather: getWeatherIndex(job),
     }));
     setRows(filteredRows);
     setLoading(false);
@@ -181,7 +181,8 @@ export default function Home() {
     setExpandedRows([]);
   }, [display]);
 
-  const getWeatherIcon = (stat) => {
+  
+  const getWeatherIndex = (stat) => {
     let fail_rate = 0;
     if (display === "nightly") {
       fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
@@ -196,15 +197,20 @@ export default function Home() {
       console.assert(fail_rate == 1.0);
       idx -= 1;
     }
-  
+
     // This error checks if there are zero runs.
     // Currently, will display stormy weather.
     if(isNaN(idx)){
       idx = 4;
     }
+    return idx;
+  };
 
+  const getWeatherIcon = (stat) => {
+    const idx = getWeatherIndex(stat);
     return icons[idx];
   };
+
 
   const weatherTemplate = (data) => {
     const icon = getWeatherIcon(data);
