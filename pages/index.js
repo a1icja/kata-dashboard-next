@@ -11,6 +11,7 @@ export default function Home() {
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
+  const [keepSearch, setKeepSearch] = useState(false);
   const [display, setDisplay] = useState("nightly");
 
   const icons = [
@@ -27,9 +28,9 @@ export default function Home() {
       // if (process.env.NODE_ENV === "development") {
       //   data = localData;
       // } else {
-      console.log("test");
       const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
+        "/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
       data = await response.json();
       // }
@@ -50,6 +51,49 @@ export default function Home() {
     fetchData();
   }, []);
 
+  const testRules  = (name, parts) => {
+    for(let i=2; i<parts.length; i++){
+      // Rule = matchMode&value/
+      const rule= parts[i].split('=')[1];
+  
+      const matchMode = rule.split('&')[0];
+      const value = rule.split('&')[1];
+
+      // Remove trailing '/' from search
+      const decoded = (
+        decodeURIComponent(value)
+        .replace('/', '')
+      ).trim().toLowerCase();
+
+      if (matchMode === 'contains'){
+        if(name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'notContains'){
+        if(!name.includes(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'equals'){
+        if(name === decoded){
+          return true;
+        }
+      }else if(matchMode === 'notEquals'){
+        if(name !== decoded){
+          return true;
+        }
+      }else if(matchMode === 'startsWith'){
+        if(name.startsWith(decoded)){
+          return true;
+        }
+      }else if(matchMode === 'endsWith'){
+        if(name.endsWith(decoded)){
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   useEffect(() => {
     setLoading(true);
 
@@ -59,15 +103,62 @@ export default function Home() {
       filteredJobs = jobs.filter((job) => job.required);
     }
 
-    // Filter based on name from URL
-    const url = new URLSearchParams(window.location.search);
-    const searchParam = url.get("search");
-    if (searchParam) {
+    // Get the current URL
+    const url = window.location.href;
+
+    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
+    // Thus, split on ? to isolate each area
+    const parts = url.split('?');
+
+    // For the operator, and = match all / or = match any
+    if(parts[1] === "and/"){
+      // Iterate through ?search=matchMode&value/
+      for(let i=2; i<parts.length; i++){
+        // Rule = matchMode&value/
+        const rule= parts[i].split('=')[1];
+        
+        const matchMode = rule.split('&')[0];
+        const value = rule.split('&')[1];
+
+        // Remove trailing '/' from search
+        const decoded = (
+          decodeURIComponent(value)
+          .replace('/', '')
+        ).trim().toLowerCase();
+
+        // Not case sensitive now, remove toLowerCase to make it so. 
+        if (matchMode === 'contains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().includes(decoded)
+        );
+        }else if(matchMode === 'notContains'){
+          filteredJobs = filteredJobs.filter((job) =>
+            !job.name.toLowerCase().includes(decoded)
+          );
+        }else if(matchMode === 'equals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() === decoded
+          );
+        }else if(matchMode === 'notEquals'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase() !== decoded
+          );
+        }else if(matchMode === 'startsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().startsWith(decoded)
+          );
+        }else if(matchMode === 'endsWith'){
+          filteredJobs = filteredJobs.filter((job) =>
+            job.name.toLowerCase().endsWith(decoded)
+          );
+        }
+      }
+    } else if(parts[1] === "or/"){
       filteredJobs = filteredJobs.filter((job) =>
-        job.name.toLowerCase().includes(searchParam.toLowerCase())
+        testRules(job.name.toLowerCase(), parts)
       );
     }
-
+    
     // Create rows to set into table.
     const filteredRows = filteredJobs.map((job) => ({
       name: job.name,
@@ -80,7 +171,6 @@ export default function Home() {
       pr_skips: job.pr_skips,
       weather: "Sunny",
     }));
-
     setRows(filteredRows);
     setLoading(false);
   }, [jobs, requiredFilter, display]);
@@ -90,10 +180,6 @@ export default function Home() {
     setExpandedRows([]);
   }, [display]);
 
-  const handleRequiredFilterChange = (checked) => {
-    setRequiredFilter(checked);
-  };
-
   const getWeatherIcon = (stat) => {
     let fail_rate = 0;
     if (display === "nightly") {
@@ -101,7 +187,8 @@ export default function Home() {
     } else {
       fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
     }
-    var idx = Math.floor((fail_rate * 10) / 2); // e.g. failing 3/9 runs is .33, or idx=1
+    // e.g. failing 3/9 runs is .33, or idx=1
+    var idx = Math.floor((fail_rate * 10) / 2); 
     if (idx == icons.length) {
       // edge case: if 100% failures, then we go past the end of icons[]
       // back the idx down by 1
@@ -120,7 +207,6 @@ export default function Home() {
 
   const weatherTemplate = (data) => {
     const icon = getWeatherIcon(data);
-
     return (
       <div>
         <Image
@@ -139,7 +225,7 @@ export default function Home() {
       <input
         type="checkbox"
         checked={requiredFilter === true}
-        onChange={(e) => handleRequiredFilterChange(e.target.checked)}
+        onChange={(e) => setRequiredFilter(e.target.checked)}
         style={{ height: "1rem", width: "1rem" }}
       />
     </div>
@@ -168,8 +254,6 @@ export default function Home() {
   };
 
   const rowExpansionTemplate = (data) => {
-    // console.log(data);
-
     const job = jobs.find((job) => job.name === data.name);
 
     // Prepare run data
@@ -245,6 +329,36 @@ export default function Home() {
     );
   };
 
+  const handleFilterApply = (e) => {
+    // If the first value isn't null, we must apply the search.
+    if (e.constraints.constraints[0].value) {
+      // Start the path with /?operator   (and/or)
+      
+      // Will always use the new operator.
+      let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
+
+      // If checked, it will keep the search rules from the URL.
+      if(keepSearch){
+        const url = window.location.href;
+        const parts = url.split('?');
+        if(parts.length > 2){
+          for(let i=2; i<parts.length; i++){
+            path += `/?${parts[i].replace('/', '').trim()}`
+          }
+        }
+      }
+      
+      // Append each matchMode/value pair to the URL.
+      for (const c of e.constraints.constraints){
+        path += `/?search=${encodeURIComponent(c.matchMode)}&` + 
+        `${encodeURIComponent(c.value.trim())}`;
+      }
+
+      // Update URL
+      window.location.href = path;
+    }
+  };
+
   const renderTable = () => (
     <DataTable
       value={rows}
@@ -253,6 +367,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
+      emptyMessage="No results found." 
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -261,6 +376,8 @@ export default function Home() {
         body={nameTemplate}
         filter
         sortable
+        onFilterApplyClick={(e) => handleFilterApply(e)}
+        maxConstraints={4}
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
@@ -292,9 +409,11 @@ export default function Home() {
 
   return (
     <div className="text-center">
-      <h1 className="text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500">
+      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit" +
+                     "hover:text-blue-500"}>
         <a
-          href="https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
+          href={"https://github.com/kata-containers/kata-containers/" +
+          "actions/workflows/ci-nightly.yaml"}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -302,13 +421,13 @@ export default function Home() {
         </a>
       </h1>
 
-      <div className="flex justify-between items-center mt-4 ml-4">
-        <div className="tabs">
+      <div className="flex justify-center mt-4 ml-4">
+        <div className="tabs mr-10">
           <button
             className={`tab px-4 py-2 border-b-2 ${
               display === "nightly"
-                ? "border-blue-500 bg-white"
-                : "border-gray-300"
+                ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("nightly")}
           >
@@ -317,17 +436,42 @@ export default function Home() {
           <button
             className={`tab px-4 py-2 border-b-2 ${
               display === "prchecks"
-                ? "border-blue-500 bg-white"
-                : "border-gray-300"
+                ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("prchecks")}
           >
             PR Checks
-          </button>
+          </button> 
         </div>
+
+        <button
+            className={`tab px-4 py-2 border-b-2 ${
+              keepSearch ? "border-blue-500 bg-gray-300"
+                : "border-gray-300 bg-white"
+            } focus:outline-none`}
+            onClick={(e) => setKeepSearch(!keepSearch)}
+          >
+            Keep URL Search Terms
+          </button>
+
+   
+{/*         
+        <div className="flex items-center mr-4 border-4 border-blue-500 py-3 pl-5 rounded-full">
+          <label className="mr-2 text-sm font-bold">Keep URL Search Terms</label>
+          <input
+            className="mr-6"
+            type="checkbox"
+            checked={keepSearch === true}
+            onChange={(e) => setKeepSearch(e.target.checked)}
+            style={{ height: "1rem", width: "1rem" }}
+          />
+        </div> */}
       </div>
 
-      <main className="m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text">
+      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto" +
+                       "bg-surface-ground font-normal text-text-color" +
+                       "antialiased select-text"}>
         <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
