@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from "next/image";
-import localData from "../data/job_stats.json";
+// import localData from "../data/job_stats.json";
 import { basePath } from "../next.config.js";
 
 export default function Home() {
@@ -26,13 +26,13 @@ export default function Home() {
     const fetchData = async () => {
       let data = {};
       // if (process.env.NODE_ENV === "development") {
-        data = localData;
+        // data = localData;
       // } else {
-      // const response = await fetch(
-      //   "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
-      //   "/refs/heads/latest-dashboard-data/data/job_stats.json"
-      // );
-      // data = await response.json();
+      const response = await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
+        "/refs/heads/latest-dashboard-data/data/job_stats.json"
+      );
+      data = await response.json();
       // }
 
       try {
@@ -419,8 +419,7 @@ export default function Home() {
 
   return (
     <div className="text-center">
-      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit" +
-                     "hover:text-blue-500"}>
+      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
         <a
           href={"https://github.com/kata-containers/kata-containers/" +
           "actions/workflows/ci-nightly.yaml"}
@@ -466,9 +465,7 @@ export default function Home() {
           </button>
       </div>
 
-      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto" +
-                       "bg-surface-ground font-normal text-text-color" +
-                       "antialiased select-text"}>
+      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"}>
         <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
