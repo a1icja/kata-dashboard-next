@@ -355,8 +355,8 @@ export default function Home() {
         `${encodeURIComponent(c.value.trim())}`;
       }
 
-      // Update URL
-      window.location.href = basePath + path;
+      // Update URL using the basepath
+      window.location.href = `${basePath}${path}`;
     }
   };
 
