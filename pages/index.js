@@ -59,7 +59,7 @@ export default function Home() {
       const matchMode = rule.split('&')[0];
       const value = rule.split('&')[1];
 
-      // Remove trailing '/' from search
+      // Remove trailing '/' from search and trim.
       const decoded = (
         decodeURIComponent(value)
         .replace('/', '')
@@ -91,6 +91,7 @@ export default function Home() {
         }
       }
     }
+    // Only return false if it satifies none of the rules. 
     return false;
   }
 
@@ -120,7 +121,7 @@ export default function Home() {
         const matchMode = rule.split('&')[0];
         const value = rule.split('&')[1];
 
-        // Remove trailing '/' from search
+        // Remove trailing '/' from search abd trim.
         const decoded = (
           decodeURIComponent(value)
           .replace('/', '')
@@ -195,9 +196,9 @@ export default function Home() {
       console.assert(fail_rate == 1.0);
       idx -= 1;
     }
-    
+  
     // This error checks if there are zero runs.
-    // Currently, will displays stormy weather.
+    // Currently, will display stormy weather.
     if(isNaN(idx)){
       idx = 4;
     }
@@ -450,23 +451,10 @@ export default function Home() {
               keepSearch ? "border-blue-500 bg-gray-300"
                 : "border-gray-300 bg-white"
             } focus:outline-none`}
-            onClick={(e) => setKeepSearch(!keepSearch)}
+            onClick={() => setKeepSearch(!keepSearch)}
           >
             Keep URL Search Terms
           </button>
-
-   
-{/*         
-        <div className="flex items-center mr-4 border-4 border-blue-500 py-3 pl-5 rounded-full">
-          <label className="mr-2 text-sm font-bold">Keep URL Search Terms</label>
-          <input
-            className="mr-6"
-            type="checkbox"
-            checked={keepSearch === true}
-            onChange={(e) => setKeepSearch(e.target.checked)}
-            style={{ height: "1rem", width: "1rem" }}
-          />
-        </div> */}
       </div>
 
       <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto" +
