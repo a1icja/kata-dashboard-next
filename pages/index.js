@@ -356,7 +356,7 @@ export default function Home() {
       }
 
       // Update URL
-      window.location.href = path;
+      window.location.href = basePath + path;
     }
   };
 
