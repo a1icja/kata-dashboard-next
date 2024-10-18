@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from "next/image";
-// import localData from "../data/job_stats.json";
+import localData from "../data/job_stats.json";
 import { basePath } from "../next.config.js";
 
 export default function Home() {
@@ -26,13 +26,13 @@ export default function Home() {
     const fetchData = async () => {
       let data = {};
       // if (process.env.NODE_ENV === "development") {
-      //   data = localData;
+        data = localData;
       // } else {
-      const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
-        "/refs/heads/latest-dashboard-data/data/job_stats.json"
-      );
-      data = await response.json();
+      // const response = await fetch(
+      //   "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
+      //   "/refs/heads/latest-dashboard-data/data/job_stats.json"
+      // );
+      // data = await response.json();
       // }
 
       try {
@@ -290,27 +290,30 @@ export default function Home() {
     return (
       <div
         key={`${job.name}-runs`}
-        className="p-3"
+        className="p-3 bg-gray-100"
         style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
       >
         {display === "nightly" && (
           <div>
-            {runs.map((run) => {
-              const emoji =
-                run.result === "Pass"
-                  ? "✅"
-                  : run.result === "Fail"
-                  ? "❌"
-                  : "⚠️";
-              return (
-                <span key={`${job.name}-runs-${run.run_num}`}>
-                  <a href={run.url}>
-                    {emoji} {run.run_num}
-                  </a>
-                  &nbsp;&nbsp;&nbsp;&nbsp;
-                </span>
-              );
-            })}
+            {runs.length > 0  ? (
+              runs.map((run) => {
+                const emoji =
+                  run.result === "Pass"
+                    ? "✅"
+                    : run.result === "Fail"
+                    ? "❌"
+                    : "⚠️";
+                return (
+                  <span key={`${job.name}-runs-${run.run_num}`}>
+                    <a href={run.url}>
+                      {emoji} {run.run_num}
+                    </a>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                  </span>
+                );
+            })) : (
+              <div>No Nightly Runs associated with this job</div>
+            )}  
           </div>
         )}
         {display === "prchecks" && (
