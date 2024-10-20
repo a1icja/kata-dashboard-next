@@ -24,217 +24,80 @@ export default function Home() {
     "stormy.svg",
   ];
 
+  // Fetch data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      let nightlyData = {};
-      let prData = {};  // THIS IS THE OTHER DATASET THAT SHOULD BE USED WHEN THE 'PR CHECKS' TAB IS SELECTED...
-      if (process.env.NODE_ENV === "development") {
-        nightlyData = NightlyData;
-        prData = PRData;
-      } else {
-      const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
-        "/refs/heads/latest-dashboard-data/data/job_stats.json"
-      );
-      data = await response.json();
-      }
+      let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      ).then((res) => res.json());
+      let prData = process.env.NODE_ENV === "development" ? PRData : {};
 
-      try {
-        const jobData = Object.keys(nightlyData).map((key) => {
-          const job = nightlyData[key];
-          return { name: key, ...job };
-        });
-        setJobs(jobData);
-        const checkData = Object.keys(prData).map((key) => {
-          const check = prData[key];
-          return { name: key, ...check };
-        });
-        setChecks(checkData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
+      const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
+      setJobs(mapData(nightlyData));
+      setChecks(mapData(prData));
+      setLoading(false);
     };
-
     fetchData();
   }, []);
 
-  const testRules  = (name, parts) => {
-    for(let i=2; i<parts.length; i++){
-      // Rule = matchMode&value/
-      const rule= parts[i].split('=')[1];
-  
-      const matchMode = rule.split('&')[0];
-      const value = rule.split('&')[1];
-
-      // Remove trailing '/' from search and trim.
-      const decoded = (
-        decodeURIComponent(value)
-        .replace('/', '')
-      ).trim().toLowerCase();
-
-      if (matchMode === 'contains'){
-        if(name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'notContains'){
-        if(!name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'equals'){
-        if(name === decoded){
-          return true;
-        }
-      }else if(matchMode === 'notEquals'){
-        if(name !== decoded){
-          return true;
-        }
-      }else if(matchMode === 'startsWith'){
-        if(name.startsWith(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'endsWith'){
-        if(name.endsWith(decoded)){
-          return true;
-        }
-      }
+  const applyFilter = (filteredJobs, parts) => {
+    for (let i = 2; i < parts.length; i++) {
+      const [matchMode, value] = parts[i].split("=")[1].split("&");
+      const decoded = decodeURIComponent(value).replace("/", "").trim().toLowerCase();
+      const filterMap = {
+        contains: (name) => name.includes(decoded),
+        notContains: (name) => !name.includes(decoded),
+        equals: (name) => name === decoded,
+        notEquals: (name) => name !== decoded,
+        startsWith: (name) => name.startsWith(decoded),
+        endsWith: (name) => name.endsWith(decoded),
+      };
+      filteredJobs = filteredJobs.filter((job) => filterMap[matchMode](job.name.toLowerCase()));
     }
-    // Only return false if it satifies none of the rules. 
-    return false;
-  }
+    return filteredJobs;
+  };
 
   useEffect(() => {
     setLoading(true);
+    let filteredJobs = display === "nightly" ? jobs : checks;
+    if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
 
-    // Filter based on required tag.
-    let filteredJobs = (display === 'nightly' ? jobs : checks);
-    if (requiredFilter) {
-      filteredJobs = (display === 'nightly' ? jobs : checks).filter((job) => job.required);
-    }
+    const urlParts = window.location.href.split("?");
+    if (urlParts[1]) filteredJobs = applyFilter(filteredJobs, urlParts);
 
-    // Get the current URL
-    const url = window.location.href;
-
-    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
-    // Thus, split on ? to isolate each area
-    const parts = url.split('?');
-
-    // For the operator, and = match all / or = match any
-    if(parts[1] === "and/"){
-      // Iterate through ?search=matchMode&value/
-      for(let i=2; i<parts.length; i++){
-        // Rule = matchMode&value/
-        const rule= parts[i].split('=')[1];
-        
-        const matchMode = rule.split('&')[0];
-        const value = rule.split('&')[1];
-
-        // Remove trailing '/' from search abd trim.
-        const decoded = (
-          decodeURIComponent(value)
-          .replace('/', '')
-        ).trim().toLowerCase();
-
-        // Not case sensitive now, remove toLowerCase to make it so. 
-        if (matchMode === 'contains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().includes(decoded)
-        );
-        }else if(matchMode === 'notContains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            !job.name.toLowerCase().includes(decoded)
-          );
-        }else if(matchMode === 'equals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() === decoded
-          );
-        }else if(matchMode === 'notEquals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() !== decoded
-          );
-        }else if(matchMode === 'startsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().startsWith(decoded)
-          );
-        }else if(matchMode === 'endsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().endsWith(decoded)
-          );
-        }
-      }
-    } else if(parts[1] === "or/"){
-      filteredJobs = filteredJobs.filter((job) =>
-        testRules(job.name.toLowerCase(), parts)
-      );
-    }
-    
-    // Create rows to set into table.
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      weather: getWeatherIndex(job),
-    }));
-    setRows(filteredRows);
+    setRows(
+      filteredJobs.map((job) => ({
+        name: job.name,
+        runs: job.runs,
+        fails: job.fails,
+        skips: job.skips,
+        required: job.required,
+        weather: getWeatherIndex(job),
+      }))
+    );
     setLoading(false);
   }, [jobs, checks, requiredFilter, display]);
 
-  // Collapse rows if display changes
-  useEffect(() => {
-    setExpandedRows([]);
-  }, [display]);
+  useEffect(() => setExpandedRows([]), [display]);
 
-  
   const getWeatherIndex = (stat) => {
-    let fail_rate = 0;
-    fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
-
-    // e.g. failing 3/9 runs is .33, or idx=1
-    var idx = Math.floor((fail_rate * 10) / 2); 
-    if (idx == icons.length) {
-      // edge case: if 100% failures, then we go past the end of icons[]
-      // back the idx down by 1
-      console.assert(fail_rate == 1.0);
-      idx -= 1;
-    }
-
-    // This error checks if there are zero runs.
-    // Currently, will display stormy weather.
-    if(isNaN(idx)){
-      idx = 4;
-    }
-    return idx;
+    const failRate = (stat.fails + stat.skips) / stat.runs;
+    let idx = Math.floor((failRate * 10) / 2);
+    if (idx === icons.length) idx -= 1;
+    return isNaN(idx) ? 4 : idx;
   };
 
-  const getWeatherIcon = (stat) => {
-    const idx = getWeatherIndex(stat);
-    return icons[idx];
-  };
-
-
-  const weatherTemplate = (data) => {
-    const icon = getWeatherIcon(data);
-    return (
-      <div>
-        <Image
-          src={`${basePath}/${icon}`}
-          alt="weather"
-          width={32}
-          height={32}
-          // priority
-        />
-      </div>
-    );
-  };
+  const weatherTemplate = (data) => (
+    <div>
+      <Image src={`${basePath}/${icons[getWeatherIndex(data)]}`} alt="weather" width={32} height={32} />
+    </div>
+  );
 
   const requiredCheckbox = (
     <div>
       <input
         type="checkbox"
-        checked={requiredFilter === true}
+        checked={requiredFilter}
         onChange={(e) => setRequiredFilter(e.target.checked)}
         style={{ height: "1rem", width: "1rem" }}
       />
@@ -242,97 +105,63 @@ export default function Home() {
   );
 
   const toggleRow = (rowData) => {
-    const isRowExpanded = expandedRows.includes(rowData);
-
-    let updatedExpandedRows;
-    if (isRowExpanded) {
-      updatedExpandedRows = expandedRows.filter((r) => r !== rowData);
-    } else {
-      updatedExpandedRows = [...expandedRows, rowData];
-    }
-
-    setExpandedRows(updatedExpandedRows);
-  };
-
-  // Template for rendering the Name column as a clickable item
-  const nameTemplate = (rowData) => {
-    return (
-      <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
-        {rowData.name}
-      </span>
+    setExpandedRows((prev) =>
+      prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
     );
   };
 
-  const rowExpansionTemplate = (data = (display === 'nightly' ? data : prData)) => {
-    const job = (display === 'nightly' ? jobs : checks).find((job) => job.name === data.name);
+  const nameTemplate = (rowData) => (
+    <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
+      {rowData.name}
+    </span>
+  );
 
-    // Prepare run data
-    const runs = [];
-    for (let i = 0; i < job.runs; i++) {
-      runs.push({
-        run_num: job.run_nums[i],
-        result: job.results[i],
-        url: job.urls[i],
-      });
-    }
+  const rowExpansionTemplate = (data) => {
+    const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
+    const runs = job.run_nums.map((num, idx) => ({
+      run_num: num,
+      result: job.results[idx],
+      url: job.urls[idx],
+    }));
 
     return (
-      <div
-        key={`${job.name}-runs`}
-        className="p-3 bg-gray-100"
-        style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
-      >
+      <div key={`${job.name}-runs`} className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
         <div>
-          {runs.length > 0  ? (
-            runs.map((run) => {
-              const emoji =
-                run.result === "Pass"
-                  ? "✅"
-                  : run.result === "Fail"
-                  ? "❌"
-                  : "⚠️";
-              return (
-                <span key={`${job.name}-${display === 'nightly' ? 'runs' : 'prs'}-${run.run_num}`}>
-                  <a href={run.url}>
-                    {emoji} {run.run_num}
-                  </a>
-                  &nbsp;&nbsp;&nbsp;&nbsp;
-                </span>
-              );
-          })) : (
+          {runs.length > 0 ? (
+            runs.map((run) => (
+              <span key={`${job.name}-${run.run_num}`}>
+                <a href={run.url}>
+                  {run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️"} {run.run_num}
+                </a>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+              </span>
+            ))
+          ) : (
             <div>No runs associated with this job</div>
-          )}  
+          )}
         </div>
       </div>
     );
   };
 
   const handleFilterApply = (e) => {
-    // If the first value isn't null, we must apply the search.
     if (e.constraints.constraints[0].value) {
-      // Start the path with /?operator   (and/or)
-      
-      // Will always use the new operator.
       let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
 
-      // If checked, it will keep the search rules from the URL.
-      if(keepSearch){
+      if (keepSearch) {
         const url = window.location.href;
         const parts = url.split('?');
-        if(parts.length > 2){
-          for(let i=2; i<parts.length; i++){
-            path += `/?${parts[i].replace('/', '').trim()}`
+        if (parts.length > 2) {
+          for (let i = 2; i < parts.length; i++) {
+            path += `/?${parts[i].replace('/', '').trim()}`;
           }
         }
       }
-      
-      // Append each matchMode/value pair to the URL.
-      for (const c of e.constraints.constraints){
-        path += `/?search=${encodeURIComponent(c.matchMode)}&` + 
-        `${encodeURIComponent(c.value.trim())}`;
-      }
 
-      // Update URL using the basepath
+      e.constraints.constraints.forEach((c) => {
+        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`;
+      });
+
       window.location.href = `${basePath}${path}`;
     }
   };
@@ -345,7 +174,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage="No results found." 
+      emptyMessage="No results found."
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -361,27 +190,10 @@ export default function Home() {
       />
       <Column header={requiredCheckbox}></Column>
       <Column field="required" header="Required" sortable />
-      <Column
-        field={"runs"}
-        header="Runs"
-        sortable
-      />
-      <Column
-        field={"fails"}
-        header="Fails"
-        sortable
-      />
-      <Column
-        field={"skips"}
-        header="Skips"
-        sortable
-      />
-      <Column
-        field="weather"
-        header="Weather"
-        body={weatherTemplate}
-        sortable
-      />
+      <Column field={"runs"} header="Runs" sortable />
+      <Column field={"fails"} header="Fails" sortable />
+      <Column field={"skips"} header="Skips" sortable />
+      <Column field="weather" header="Weather" body={weatherTemplate} sortable />
     </DataTable>
   );
 
@@ -389,8 +201,7 @@ export default function Home() {
     <div className="text-center">
       <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
         <a
-          href={"https://github.com/kata-containers/kata-containers/" +
-          "actions/workflows/ci-nightly.yaml"}
+          href={"https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -402,35 +213,30 @@ export default function Home() {
         <div className="tabs mr-10">
           <button
             className={`tab px-4 py-2 border-b-2 ${
-              display === "nightly"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
+              display === "nightly" ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("nightly")}
           >
             Nightly Jobs
           </button>
-          <button  // WHEN THIS IS SELECTED, THE TABLE SHOULD DISPLAY THE prData INSTEAD
+          <button
             className={`tab px-4 py-2 border-b-2 ${
-              display === "prchecks"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
+              display === "prchecks" ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
             } focus:outline-none`}
             onClick={() => setDisplay("prchecks")}
           >
             PR Checks
-          </button> 
+          </button>
         </div>
 
         <button
-            className={`tab px-4 py-2 border-b-2 ${
-              keepSearch ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
-            onClick={() => setKeepSearch(!keepSearch)}
-          >
-            Keep URL Search Terms
-          </button>
+          className={`tab px-4 py-2 border-b-2 ${
+            keepSearch ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
+          } focus:outline-none`}
+          onClick={() => setKeepSearch(!keepSearch)}
+        >
+          Keep URL Search Terms
+        </button>
       </div>
 
       <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"}>
