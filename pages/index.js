@@ -82,8 +82,6 @@ export default function Home() {
     setLoading(false);
   }, [jobs, checks, requiredFilter, display]);
 
-  useEffect(() => setExpandedRows([]), [display]);
-
   const getWeatherIndex = (stat) => {
     const failRate = (stat.fails + stat.skips) / stat.runs;
     let idx = Math.floor((failRate * 10) / 2);
@@ -109,16 +107,16 @@ export default function Home() {
     </span>
   );
 
+  const buttonClass = (active) => `tab px-4 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`;
+
+  const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
+    ${active ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"}`;
+
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
   
-    if (!job) {
-      return (
-        <div className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
-          <p>No data available for this job.</p>
-        </div>
-      );
-    }
+    if (!job) return <div className="p-3 bg-gray-100">No data available for this job.</div>;
 
     // Aggregate runs by run_num
     const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
@@ -161,7 +159,7 @@ export default function Home() {
     
             return (
               <div key={run_num} style={{ display: "flex" }}>
-                <a href={runs[0].url}>
+                <a href={runs[0].url} target="_blank">
                   {getRunStatusIcon(runs)} {run_num}
                 </a>
                 {count > 1 && (
@@ -239,7 +237,9 @@ export default function Home() {
     <div className="text-center">
       <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
         <a
-          href={"https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"}
+          href={display === 'nightly' 
+            ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
+            : "https://github.com/kata-containers/kata-containers/actions/workflows/ci-on-push.yaml"}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -250,18 +250,12 @@ export default function Home() {
       <div className="flex justify-between items-center mt-2 ml-4">
 
         <div className="tabs flex space-x-2">
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "nightly" ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
-            } focus:outline-none`}
+          <button className={tabClass(display === "nightly")}
             onClick={() => setDisplay("nightly")}
           >
             Nightly Jobs
           </button>
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "prchecks" ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
-            } focus:outline-none`}
+          <button className={tabClass(display === "prchecks")}
             onClick={() => setDisplay("prchecks")}
           >
             PR Checks
@@ -270,18 +264,13 @@ export default function Home() {
 
         <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
                          bg-surface-ground font-normal text-text-color antialiased select-text"}>
-          <button
-            className={`tab px-4 py-2 border-2 ${keepSearch ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`}
-            onClick={() => setKeepSearch(!keepSearch)}
-            style={{ borderRadius: '0.25rem', transition: 'background-color 0.2s' }}
-          >
+          <button className={buttonClass(keepSearch)} 
+            onClick={() => setKeepSearch(!keepSearch)}>
             Keep URL Search Terms
           </button>
-          <button
-            className={`tab px-4 py-2 border-2 ${requiredFilter ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`}
-            onClick={() => setRequiredFilter(!requiredFilter)}
-            style={{ borderRadius: '0.25rem', transition: 'background-color 0.2s' }}
-          >
+
+          <button className={buttonClass(requiredFilter)} 
+            onClick={() => setRequiredFilter(!requiredFilter)}>
             Required Jobs Only
           </button>
         </div>
