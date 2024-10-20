@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Image from "next/image";
-// import localData from "../data/job_stats.json";
+import NightlyData from "../data/job_stats.json";
+import PRData from "../data/check_stats.json";
 import { basePath } from "../next.config.js";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
+  const [checks, setChecks] = useState([]);
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
@@ -24,23 +26,30 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      let data = {};
-      // if (process.env.NODE_ENV === "development") {
-        // data = localData;
-      // } else {
+      let nightlyData = {};
+      let prData = {};  // THIS IS THE OTHER DATASET THAT SHOULD BE USED WHEN THE 'PR CHECKS' TAB IS SELECTED...
+      if (process.env.NODE_ENV === "development") {
+        nightlyData = NightlyData;
+        prData = PRData;
+      } else {
       const response = await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
         "/refs/heads/latest-dashboard-data/data/job_stats.json"
       );
       data = await response.json();
-      // }
+      }
 
       try {
-        const jobData = Object.keys(data).map((key) => {
-          const job = data[key];
+        const jobData = Object.keys(nightlyData).map((key) => {
+          const job = nightlyData[key];
           return { name: key, ...job };
         });
         setJobs(jobData);
+        const checkData = Object.keys(prData).map((key) => {
+          const check = prData[key];
+          return { name: key, ...check };
+        });
+        setChecks(checkData);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -99,9 +108,9 @@ export default function Home() {
     setLoading(true);
 
     // Filter based on required tag.
-    let filteredJobs = jobs;
+    let filteredJobs = (display === 'nightly' ? jobs : checks);
     if (requiredFilter) {
-      filteredJobs = jobs.filter((job) => job.required);
+      filteredJobs = (display === 'nightly' ? jobs : checks).filter((job) => job.required);
     }
 
     // Get the current URL
@@ -167,14 +176,11 @@ export default function Home() {
       fails: job.fails,
       skips: job.skips,
       required: job.required,
-      pr_runs: job.pr_runs,
-      pr_fails: job.pr_fails,
-      pr_skips: job.pr_skips,
       weather: getWeatherIndex(job),
     }));
     setRows(filteredRows);
     setLoading(false);
-  }, [jobs, requiredFilter, display]);
+  }, [jobs, checks, requiredFilter, display]);
 
   // Collapse rows if display changes
   useEffect(() => {
@@ -184,11 +190,8 @@ export default function Home() {
   
   const getWeatherIndex = (stat) => {
     let fail_rate = 0;
-    if (display === "nightly") {
-      fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
-    } else {
-      fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
-    }
+    fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
+
     // e.g. failing 3/9 runs is .33, or idx=1
     var idx = Math.floor((fail_rate * 10) / 2); 
     if (idx == icons.length) {
@@ -260,8 +263,8 @@ export default function Home() {
     );
   };
 
-  const rowExpansionTemplate = (data) => {
-    const job = jobs.find((job) => job.name === data.name);
+  const rowExpansionTemplate = (data = (display === 'nightly' ? data : prData)) => {
+    const job = (display === 'nightly' ? jobs : checks).find((job) => job.name === data.name);
 
     // Prepare run data
     const runs = [];
@@ -273,68 +276,33 @@ export default function Home() {
       });
     }
 
-    const prs = [];
-    job.pr_nums.forEach((pr_num, index) => {
-      const pr_url = job.pr_urls[index];
-      const pr_res = job.pr_results[index];
-
-      if (!prs.some((pr) => pr.num === pr_num && pr.url === pr_url)) {
-        prs.push({
-          num: pr_num,
-          url: pr_url,
-          res: pr_res,
-        });
-      }
-    });
-
     return (
       <div
         key={`${job.name}-runs`}
         className="p-3 bg-gray-100"
         style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
       >
-        {display === "nightly" && (
-          <div>
-            {runs.length > 0  ? (
-              runs.map((run) => {
-                const emoji =
-                  run.result === "Pass"
-                    ? "✅"
-                    : run.result === "Fail"
-                    ? "❌"
-                    : "⚠️";
-                return (
-                  <span key={`${job.name}-runs-${run.run_num}`}>
-                    <a href={run.url}>
-                      {emoji} {run.run_num}
-                    </a>
-                    &nbsp;&nbsp;&nbsp;&nbsp;
-                  </span>
-                );
-            })) : (
-              <div>No Nightly Runs associated with this job</div>
-            )}  
-          </div>
-        )}
-        {display === "prchecks" && (
-          <div>
-            {prs.length > 0 ? (
-              prs.map((pr) => {
-                const emoji =
-                  pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
-                return (
-                  <span key={`${job.name}-prs-${pr.num}`}>
-                    <a href={pr.url}>
-                      {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    </a>
-                  </span>
-                );
-              })
-            ) : (
-              <div>No PRs associated with this job</div>
-            )}
-          </div>
-        )}
+        <div>
+          {runs.length > 0  ? (
+            runs.map((run) => {
+              const emoji =
+                run.result === "Pass"
+                  ? "✅"
+                  : run.result === "Fail"
+                  ? "❌"
+                  : "⚠️";
+              return (
+                <span key={`${job.name}-${display === 'nightly' ? 'runs' : 'prs'}-${run.run_num}`}>
+                  <a href={run.url}>
+                    {emoji} {run.run_num}
+                  </a>
+                  &nbsp;&nbsp;&nbsp;&nbsp;
+                </span>
+              );
+          })) : (
+            <div>No runs associated with this job</div>
+          )}  
+        </div>
       </div>
     );
   };
@@ -394,17 +362,17 @@ export default function Home() {
       <Column header={requiredCheckbox}></Column>
       <Column field="required" header="Required" sortable />
       <Column
-        field={display === "nightly" ? "runs" : "pr_runs"}
+        field={"runs"}
         header="Runs"
         sortable
       />
       <Column
-        field={display === "nightly" ? "fails" : "pr_fails"}
+        field={"fails"}
         header="Fails"
         sortable
       />
       <Column
-        field={display === "nightly" ? "skips" : "pr_skips"}
+        field={"skips"}
         header="Skips"
         sortable
       />
@@ -442,7 +410,7 @@ export default function Home() {
           >
             Nightly Jobs
           </button>
-          <button
+          <button  // WHEN THIS IS SELECTED, THE TABLE SHOULD DISPLAY THE prData INSTEAD
             className={`tab px-4 py-2 border-b-2 ${
               display === "prchecks"
                 ? "border-blue-500 bg-gray-300"
