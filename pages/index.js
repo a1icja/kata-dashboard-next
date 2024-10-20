@@ -97,17 +97,6 @@ export default function Home() {
     </div>
   );
 
-  const requiredCheckbox = (
-    <div>
-      <input
-        type="checkbox"
-        checked={requiredFilter}
-        onChange={(e) => setRequiredFilter(e.target.checked)}
-        style={{ height: "1rem", width: "1rem" }}
-      />
-    </div>
-  );
-
   const toggleRow = (rowData) => {
     setExpandedRows((prev) =>
       prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
@@ -123,6 +112,14 @@ export default function Home() {
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
   
+    if (!job) {
+      return (
+        <div className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
+          <p>No data available for this job.</p>
+        </div>
+      );
+    }
+
     // Aggregate runs by run_num
     const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
       const run = {
@@ -230,7 +227,6 @@ export default function Home() {
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
-      <Column                    header = {requiredCheckbox}></Column>
       <Column field = "required" header = "Required" sortable />
       <Column field = {"runs"}   header = "Runs"     sortable />
       <Column field = {"fails"}  header = "Fails"    sortable />
@@ -278,6 +274,15 @@ export default function Home() {
           onClick={() => setKeepSearch(!keepSearch)}
         >
           Keep URL Search Terms
+        </button>
+
+        <button
+          className={`tab px-4 py-2 border-b-2 ${requiredFilter 
+            ? "border-blue-500 bg-gray-300" 
+            : "border-gray-300 bg-white"}`}
+          onClick={() => setRequiredFilter(!requiredFilter)}
+        >
+          Required Jobs Only
         </button>
       </div>
 
