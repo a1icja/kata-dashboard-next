@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
 import Image from "next/image";
-import NightlyData from "../data/job_stats.json";
-import PRData from "../data/check_stats.json";
+
+import { DataTable } from "primereact/datatable";
+import { Column }    from "primereact/column";
+import { Tooltip }   from 'primereact/tooltip';
+
+import NightlyData  from "../data/job_stats.json";
+import PRData       from "../data/check_stats.json";
 import { basePath } from "../next.config.js";
 
+
 export default function Home() {
-  const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState([]);
-  const [checks, setChecks] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [expandedRows, setExpandedRows] = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [jobs,           setJobs]           = useState([]);
+  const [checks,         setChecks]         = useState([]);
+  const [rows,           setRows]           = useState([]);
+  const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [keepSearch, setKeepSearch] = useState(false);
-  const [display, setDisplay] = useState("nightly");
+  const [keepSearch,     setKeepSearch]     = useState(false);
+  const [display,        setDisplay]        = useState("nightly");
 
   const icons = [
     "sunny.svg",
@@ -45,12 +49,12 @@ export default function Home() {
       const [matchMode, value] = parts[i].split("=")[1].split("&");
       const decoded = decodeURIComponent(value).replace("/", "").trim().toLowerCase();
       const filterMap = {
-        contains: (name) => name.includes(decoded),
+        contains   : (name) => name.includes(decoded),
         notContains: (name) => !name.includes(decoded),
-        equals: (name) => name === decoded,
-        notEquals: (name) => name !== decoded,
-        startsWith: (name) => name.startsWith(decoded),
-        endsWith: (name) => name.endsWith(decoded),
+        equals     : (name) => name === decoded,
+        notEquals  : (name) => name !== decoded,
+        startsWith : (name) => name.startsWith(decoded),
+        endsWith   : (name) => name.endsWith(decoded),
       };
       filteredJobs = filteredJobs.filter((job) => filterMap[matchMode](job.name.toLowerCase()));
     }
@@ -67,12 +71,12 @@ export default function Home() {
 
     setRows(
       filteredJobs.map((job) => ({
-        name: job.name,
-        runs: job.runs,
-        fails: job.fails,
-        skips: job.skips,
+        name    : job.name,
+        runs    : job.runs,
+        fails   : job.fails,
+        skips   : job.skips,
         required: job.required,
-        weather: getWeatherIndex(job),
+        weather : getWeatherIndex(job),
       }))
     );
     setLoading(false);
@@ -118,27 +122,65 @@ export default function Home() {
 
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
-    const runs = job.run_nums.map((num, idx) => ({
-      run_num: num,
-      result: job.results[idx],
-      url: job.urls[idx],
-    }));
+  
+    // Aggregate runs by run_num
+    const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
+      const run = {
+        run_num,
+        result: job.results[idx],
+        url: job.urls[idx],
+      };
+  
+      if (!acc[run_num]) {
+        acc[run_num] = { runs: [run], count: 1 };
+      } else {
+        acc[run_num].runs.push(run);
+        acc[run_num].count += 1;
+      }
+      return acc;
+    }, {});
+  
+    const runEntries = Object.entries(aggregatedRuns);
+  
+    const getRunStatusIcon = (runs) => {
+      const allPass = runs.every(run => run.result === "Pass");
+      const allFail = runs.every(run => run.result === "Fail");
+  
+      if (allPass) return "✅";
+      if (allFail) return "❌";
+      return "⚠️";  // return this if mix of statuses
+    };
 
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
-        <div>
-          {runs.length > 0 ? (
-            runs.map((run) => (
-              <span key={`${job.name}-${run.run_num}`}>
-                <a href={run.url}>
-                  {run.result === "Pass" ? "✅" : run.result === "Fail" ? "❌" : "⚠️"} {run.run_num}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+          {runEntries.map(([run_num, { runs, count }]) => {
+            const runStatuses = runs
+              .map((run, idx) => `${idx + 1}: ${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
+              .join('\n');
+            
+            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
+            const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
+    
+            return (
+              <div key={run_num} style={{ display: "flex" }}>
+                <a href={runs[0].url}>
+                  {getRunStatusIcon(runs)} {run_num}
                 </a>
-                &nbsp;&nbsp;&nbsp;&nbsp;
-              </span>
-            ))
-          ) : (
-            <div>No runs associated with this job</div>
-          )}
+                {count > 1 && (
+                  <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
+                    <sup
+                      id={badgeId}
+                      style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
+                    >
+                      {count}
+                    </sup>
+                    <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" />
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -188,12 +230,12 @@ export default function Home() {
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
-      <Column header={requiredCheckbox}></Column>
-      <Column field="required" header="Required" sortable />
-      <Column field={"runs"} header="Runs" sortable />
-      <Column field={"fails"} header="Fails" sortable />
-      <Column field={"skips"} header="Skips" sortable />
-      <Column field="weather" header="Weather" body={weatherTemplate} sortable />
+      <Column                    header = {requiredCheckbox}></Column>
+      <Column field = "required" header = "Required" sortable />
+      <Column field = {"runs"}   header = "Runs"     sortable />
+      <Column field = {"fails"}  header = "Fails"    sortable />
+      <Column field = {"skips"}  header = "Skips"    sortable />
+      <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
     </DataTable>
   );
 
