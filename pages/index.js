@@ -153,7 +153,7 @@ export default function Home() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
           {runEntries.map(([run_num, { runs, count }]) => {
             const runStatuses = runs
-              .map((run, idx) => `${idx + 1}: ${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
+              .map((run, idx) => `${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
               .join('\n');
             
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
@@ -247,8 +247,9 @@ export default function Home() {
         </a>
       </h1>
 
-      <div className="flex justify-center mt-4 ml-4">
-        <div className="tabs mr-10">
+      <div className="flex justify-between items-center mt-2 ml-4">
+
+        <div className="tabs flex space-x-2">
           <button
             className={`tab px-4 py-2 border-b-2 ${
               display === "nightly" ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
@@ -267,26 +268,28 @@ export default function Home() {
           </button>
         </div>
 
-        <button
-          className={`tab px-4 py-2 border-b-2 ${
-            keepSearch ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"
-          } focus:outline-none`}
-          onClick={() => setKeepSearch(!keepSearch)}
-        >
-          Keep URL Search Terms
-        </button>
+        <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
+                         bg-surface-ground font-normal text-text-color antialiased select-text"}>
+          <button
+            className={`tab px-4 py-2 border-2 ${keepSearch ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`}
+            onClick={() => setKeepSearch(!keepSearch)}
+            style={{ borderRadius: '0.25rem', transition: 'background-color 0.2s' }}
+          >
+            Keep URL Search Terms
+          </button>
+          <button
+            className={`tab px-4 py-2 border-2 ${requiredFilter ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`}
+            onClick={() => setRequiredFilter(!requiredFilter)}
+            style={{ borderRadius: '0.25rem', transition: 'background-color 0.2s' }}
+          >
+            Required Jobs Only
+          </button>
+        </div>
 
-        <button
-          className={`tab px-4 py-2 border-b-2 ${requiredFilter 
-            ? "border-blue-500 bg-gray-300" 
-            : "border-gray-300 bg-white"}`}
-          onClick={() => setRequiredFilter(!requiredFilter)}
-        >
-          Required Jobs Only
-        </button>
       </div>
 
-      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"}>
+      <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto bg-surface-ground \
+                        font-normal text-text-color antialiased select-text"}>
         <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
