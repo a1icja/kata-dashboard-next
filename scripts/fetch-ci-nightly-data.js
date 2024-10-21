@@ -125,6 +125,7 @@ function get_job_data(run) {
           run_id: job["run_id"],
           html_url: job["html_url"],
           conclusion: job["conclusion"],
+          run_attempt: job["run_attempt"],
         });
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
@@ -138,6 +139,12 @@ function get_job_data(run) {
     id: run["id"],
     run_number: run["run_number"],
     created_at: run["created_at"],
+    // run_attempt: run["run_attempt"],
+    // To implement previous results as well, would have to traverse through
+    // all previous attempt URLs, extracting the job data again.
+    // The job data (conclusion) would also have to be stored in separate arrays,
+    // one for each attempt
+    // previous_attempt_url: run["previous_attempt_url"],
     conclusion: null,
     jobs: [],
   };
@@ -172,6 +179,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           urls: [], // ordered list of URLs associated w/ each run
           results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
+          run_attempt: [], //  e.g. 5, if it was run 5 times
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -191,6 +199,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
         job_stat["results"].push("Pass");
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["run_attempt"].push(job["run_attempt"]);
     }
   }
   return job_stats;
