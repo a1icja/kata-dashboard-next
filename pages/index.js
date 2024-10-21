@@ -159,8 +159,12 @@ export default function Home() {
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
             return (
               <div key={run_num} style={{ display: "flex" }}>
-                {runs.map((run, index) => (
-                  <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
+                {runs
+                  .filter((run, index, self) => 
+                    self.findIndex(r => r.run_num === run.run_num) === index // Skip duplicates
+                  )
+                  .map((run, index) => (
+                    <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
                       {display === "nightly" && (
                         <p className="mr-1 font-bold">{run.attempts}</p> 
                       )}
