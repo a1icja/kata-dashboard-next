@@ -46,7 +46,7 @@ async function fetch_pull_requests() {
     const response = await fetch(prs_url, {
       headers: {
         Accept: "application/vnd.github+json",
-        Authorization: TOKEN,
+        Authorization: `token ${TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
@@ -57,8 +57,8 @@ async function fetch_pull_requests() {
   
     const json = await response.json();
     fetch_count++;
-    console.log(`fetch ${fetch_count}: ${prs_url}
-        returned PRs cnt: ${Object.keys(json).length}`);
+    // console.log(`fetch ${fetch_count}: ${prs_url}
+    //     returned PRs cnt: ${Object.keys(json).length}`);
     return json;
 }
 
@@ -68,7 +68,7 @@ async function fetch_main_branch() {
     const response = await fetch(main_branch_url, {
         headers: {
             Accept: "application/vnd.github+json",
-            Authorization: TOKEN,
+            Authorization: `token ${TOKEN}`,
             "X-GitHub-Api-Version": "2022-11-28",
         },
     });
@@ -80,8 +80,8 @@ async function fetch_main_branch() {
     const json = await response.json();
     fetch_count++;
     const contexts = json?.protection?.required_status_checks?.contexts;
-    console.log(`fetch ${fetch_count}: ${main_branch_url}
-        required jobs cnt: ${contexts.length}`);
+    // console.log(`fetch ${fetch_count}: ${main_branch_url}
+    //     required jobs cnt: ${contexts.length}`);
     return json;
 }
 
@@ -93,7 +93,7 @@ function get_check_data(pr) {
     const response = await fetch(checks_url, {
       headers: {
         Accept: "application/vnd.github+json",
-        Authorization: TOKEN,
+        Authorization: `token ${TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
@@ -104,8 +104,8 @@ function get_check_data(pr) {
 
     const json = await response.json();
     fetch_count++;
-    console.log(`fetch ${fetch_count}: ${checks_url}
-        returned check cnt / total cnt: ${json['check_runs'].length} / ${json['total_count']}`);
+    // console.log(`fetch ${fetch_count}: ${checks_url}
+    //     returned check cnt / total cnt: ${json['check_runs'].length} / ${json['total_count']}`);
     return json;
   }
 
@@ -216,11 +216,11 @@ async function main() {
   var check_stats = compute_check_stats(prs_with_check_data, required_jobs);
 
   // Write the check_stats to console as a JSON object
-  console.log('\n\n FINAL_RESULT: \n\n', JSON.stringify(check_stats));
+  console.log(JSON.stringify(check_stats));
   // console.log(JSON.stringify(required_jobs));
 
   // Print total number of jobs
-  console.log(`\n\nTotal job count: ${Object.keys(check_stats).length}\n\n`);
+  // console.log(`\n\nTotal job count: ${Object.keys(check_stats).length}\n\n`);
 }
 
 
