@@ -151,7 +151,7 @@ export default function Home() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
           {runEntries.map(([run_num, { runs, count }]) => {
             const runStatuses = runs
-              .map((run, idx) => `${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
+              .map((run) => `${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
               .join('\n');
             
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
