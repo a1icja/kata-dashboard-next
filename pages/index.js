@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
 import Image from "next/image";
-// import localData from "../data/job_stats.json";
+
+import { DataTable } from "primereact/datatable";
+import { Column }    from "primereact/column";
+import { Tooltip }   from 'primereact/tooltip';
+
+import NightlyData  from "../data/job_stats.json";
+import PRData       from "../data/check_stats.json";
 import { basePath } from "../next.config.js";
 
+
 export default function Home() {
-  const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [expandedRows, setExpandedRows] = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [jobs,           setJobs]           = useState([]);
+  const [checks,         setChecks]         = useState([]);
+  const [rows,           setRows]           = useState([]);
+  const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [keepSearch, setKeepSearch] = useState(false);
-  const [display, setDisplay] = useState("nightly");
+  const [keepSearch,     setKeepSearch]     = useState(false);
+  const [display,        setDisplay]        = useState("nightly");
 
   const icons = [
     "sunny.svg",
@@ -22,349 +28,177 @@ export default function Home() {
     "stormy.svg",
   ];
 
+  // Fetch data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      let data = {};
-      // if (process.env.NODE_ENV === "development") {
-        // data = localData;
-      // } else {
-      const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
-        "/refs/heads/latest-dashboard-data/data/job_stats.json"
-      );
-      data = await response.json();
-      // }
+      let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      ).then((res) => res.json());
+      let prData = process.env.NODE_ENV === "development" ? PRData : {};
 
-      try {
-        const jobData = Object.keys(data).map((key) => {
-          const job = data[key];
-          return { name: key, ...job };
-        });
-        setJobs(jobData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
+      const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
+      setJobs(mapData(nightlyData));
+      setChecks(mapData(prData));
+      setLoading(false);
     };
-
     fetchData();
   }, []);
 
-  const testRules  = (name, parts) => {
-    for(let i=2; i<parts.length; i++){
-      // Rule = matchMode&value/
-      const rule= parts[i].split('=')[1];
-  
-      const matchMode = rule.split('&')[0];
-      const value = rule.split('&')[1];
-
-      // Remove trailing '/' from search and trim.
-      const decoded = (
-        decodeURIComponent(value)
-        .replace('/', '')
-      ).trim().toLowerCase();
-
-      if (matchMode === 'contains'){
-        if(name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'notContains'){
-        if(!name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'equals'){
-        if(name === decoded){
-          return true;
-        }
-      }else if(matchMode === 'notEquals'){
-        if(name !== decoded){
-          return true;
-        }
-      }else if(matchMode === 'startsWith'){
-        if(name.startsWith(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'endsWith'){
-        if(name.endsWith(decoded)){
-          return true;
-        }
-      }
+  const applyFilter = (filteredJobs, parts) => {
+    for (let i = 2; i < parts.length; i++) {
+      const [matchMode, value] = parts[i].split("=")[1].split("&");
+      const decoded = decodeURIComponent(value).replace("/", "").trim().toLowerCase();
+      const filterMap = {
+        contains   : (name) => name.includes(decoded),
+        notContains: (name) => !name.includes(decoded),
+        equals     : (name) => name === decoded,
+        notEquals  : (name) => name !== decoded,
+        startsWith : (name) => name.startsWith(decoded),
+        endsWith   : (name) => name.endsWith(decoded),
+      };
+      filteredJobs = filteredJobs.filter((job) => filterMap[matchMode](job.name.toLowerCase()));
     }
-    // Only return false if it satifies none of the rules. 
-    return false;
-  }
+    return filteredJobs;
+  };
 
   useEffect(() => {
     setLoading(true);
+    let filteredJobs = display === "nightly" ? jobs : checks;
+    if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
 
-    // Filter based on required tag.
-    let filteredJobs = jobs;
-    if (requiredFilter) {
-      filteredJobs = jobs.filter((job) => job.required);
-    }
+    const urlParts = window.location.href.split("?");
+    if (urlParts[1]) filteredJobs = applyFilter(filteredJobs, urlParts);
 
-    // Get the current URL
-    const url = window.location.href;
-
-    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
-    // Thus, split on ? to isolate each area
-    const parts = url.split('?');
-
-    // For the operator, and = match all / or = match any
-    if(parts[1] === "and/"){
-      // Iterate through ?search=matchMode&value/
-      for(let i=2; i<parts.length; i++){
-        // Rule = matchMode&value/
-        const rule= parts[i].split('=')[1];
-        
-        const matchMode = rule.split('&')[0];
-        const value = rule.split('&')[1];
-
-        // Remove trailing '/' from search abd trim.
-        const decoded = (
-          decodeURIComponent(value)
-          .replace('/', '')
-        ).trim().toLowerCase();
-
-        // Not case sensitive now, remove toLowerCase to make it so. 
-        if (matchMode === 'contains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().includes(decoded)
-        );
-        }else if(matchMode === 'notContains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            !job.name.toLowerCase().includes(decoded)
-          );
-        }else if(matchMode === 'equals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() === decoded
-          );
-        }else if(matchMode === 'notEquals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() !== decoded
-          );
-        }else if(matchMode === 'startsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().startsWith(decoded)
-          );
-        }else if(matchMode === 'endsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().endsWith(decoded)
-          );
-        }
-      }
-    } else if(parts[1] === "or/"){
-      filteredJobs = filteredJobs.filter((job) =>
-        testRules(job.name.toLowerCase(), parts)
-      );
-    }
-    
-    // Create rows to set into table.
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      pr_runs: job.pr_runs,
-      pr_fails: job.pr_fails,
-      pr_skips: job.pr_skips,
-      weather: getWeatherIndex(job),
-    }));
-    setRows(filteredRows);
-    setLoading(false);
-  }, [jobs, requiredFilter, display]);
-
-  // Collapse rows if display changes
-  useEffect(() => {
-    setExpandedRows([]);
-  }, [display]);
-
-  
-  const getWeatherIndex = (stat) => {
-    let fail_rate = 0;
-    if (display === "nightly") {
-      fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
-    } else {
-      fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
-    }
-    // e.g. failing 3/9 runs is .33, or idx=1
-    var idx = Math.floor((fail_rate * 10) / 2); 
-    if (idx == icons.length) {
-      // edge case: if 100% failures, then we go past the end of icons[]
-      // back the idx down by 1
-      console.assert(fail_rate == 1.0);
-      idx -= 1;
-    }
-
-    // This error checks if there are zero runs.
-    // Currently, will display stormy weather.
-    if(isNaN(idx)){
-      idx = 4;
-    }
-    return idx;
-  };
-
-  const getWeatherIcon = (stat) => {
-    const idx = getWeatherIndex(stat);
-    return icons[idx];
-  };
-
-
-  const weatherTemplate = (data) => {
-    const icon = getWeatherIcon(data);
-    return (
-      <div>
-        <Image
-          src={`${basePath}/${icon}`}
-          alt="weather"
-          width={32}
-          height={32}
-          // priority
-        />
-      </div>
+    setRows(
+      filteredJobs.map((job) => ({
+        name    : job.name,
+        runs    : job.runs,
+        fails   : job.fails,
+        skips   : job.skips,
+        required: job.required,
+        weather : getWeatherIndex(job),
+      }))
     );
+    setLoading(false);
+  }, [jobs, checks, requiredFilter, display]);
+
+  const getWeatherIndex = (stat) => {
+    const failRate = (stat.fails + stat.skips) / stat.runs;
+    let idx = Math.floor((failRate * 10) / 2);
+    if (idx === icons.length) idx -= 1;
+    return isNaN(idx) ? 4 : idx;
   };
 
-  const requiredCheckbox = (
+  const weatherTemplate = (data) => (
     <div>
-      <input
-        type="checkbox"
-        checked={requiredFilter === true}
-        onChange={(e) => setRequiredFilter(e.target.checked)}
-        style={{ height: "1rem", width: "1rem" }}
-      />
+      <Image src={`${basePath}/${icons[getWeatherIndex(data)]}`} alt="weather" width={32} height={32} />
     </div>
   );
 
   const toggleRow = (rowData) => {
-    const isRowExpanded = expandedRows.includes(rowData);
-
-    let updatedExpandedRows;
-    if (isRowExpanded) {
-      updatedExpandedRows = expandedRows.filter((r) => r !== rowData);
-    } else {
-      updatedExpandedRows = [...expandedRows, rowData];
-    }
-
-    setExpandedRows(updatedExpandedRows);
-  };
-
-  // Template for rendering the Name column as a clickable item
-  const nameTemplate = (rowData) => {
-    return (
-      <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
-        {rowData.name}
-      </span>
+    setExpandedRows((prev) =>
+      prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
     );
   };
 
+  const nameTemplate = (rowData) => (
+    <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
+      {rowData.name}
+    </span>
+  );
+
+  const buttonClass = (active) => `tab px-4 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`;
+
+  const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
+    ${active ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"}`;
+
   const rowExpansionTemplate = (data) => {
-    const job = jobs.find((job) => job.name === data.name);
+    const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
+  
+    if (!job) return <div className="p-3 bg-gray-100">No data available for this job.</div>;
 
-    // Prepare run data
-    const runs = [];
-    for (let i = 0; i < job.runs; i++) {
-      runs.push({
-        run_num: job.run_nums[i],
-        result: job.results[i],
-        url: job.urls[i],
-      });
-    }
-
-    const prs = [];
-    job.pr_nums.forEach((pr_num, index) => {
-      const pr_url = job.pr_urls[index];
-      const pr_res = job.pr_results[index];
-
-      if (!prs.some((pr) => pr.num === pr_num && pr.url === pr_url)) {
-        prs.push({
-          num: pr_num,
-          url: pr_url,
-          res: pr_res,
-        });
+    // Aggregate runs by run_num
+    const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
+      const run = {
+        run_num,
+        result: job.results[idx],
+        url: job.urls[idx],
+      };
+  
+      if (!acc[run_num]) {
+        acc[run_num] = { runs: [run], count: 1 };
+      } else {
+        acc[run_num].runs.push(run);
+        acc[run_num].count += 1;
       }
-    });
+      return acc;
+    }, {});
+  
+    const runEntries = Object.entries(aggregatedRuns);
+  
+    const getRunStatusIcon = (runs) => {
+      const allPass = runs.every(run => run.result === "Pass");
+      const allFail = runs.every(run => run.result === "Fail");
+  
+      if (allPass) return "✅";
+      if (allFail) return "❌";
+      return "⚠️";  // return this if mix of statuses
+    };
 
     return (
-      <div
-        key={`${job.name}-runs`}
-        className="p-3 bg-gray-100"
-        style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
-      >
-        {display === "nightly" && (
-          <div>
-            {runs.length > 0  ? (
-              runs.map((run) => {
-                const emoji =
-                  run.result === "Pass"
-                    ? "✅"
-                    : run.result === "Fail"
-                    ? "❌"
-                    : "⚠️";
-                return (
-                  <span key={`${job.name}-runs-${run.run_num}`}>
-                    <a href={run.url}>
-                      {emoji} {run.run_num}
-                    </a>
-                    &nbsp;&nbsp;&nbsp;&nbsp;
+      <div key={`${job.name}-runs`} className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+          {runEntries.map(([run_num, { runs, count }]) => {
+            const runStatuses = runs
+              .map((run) => `${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
+              .join('\n');
+            
+            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
+            const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
+    
+            return (
+              <div key={run_num} style={{ display: "flex" }}>
+                <a href={runs[0].url} target="_blank">
+                  {getRunStatusIcon(runs)} {run_num}
+                </a>
+                {count > 1 && (
+                  <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
+                    <sup
+                      id={badgeId}
+                      style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
+                    >
+                      {count}
+                    </sup>
+                    <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" />
                   </span>
-                );
-            })) : (
-              <div>No Nightly Runs associated with this job</div>
-            )}  
-          </div>
-        )}
-        {display === "prchecks" && (
-          <div>
-            {prs.length > 0 ? (
-              prs.map((pr) => {
-                const emoji =
-                  pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
-                return (
-                  <span key={`${job.name}-prs-${pr.num}`}>
-                    <a href={pr.url}>
-                      {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    </a>
-                  </span>
-                );
-              })
-            ) : (
-              <div>No PRs associated with this job</div>
-            )}
-          </div>
-        )}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
 
   const handleFilterApply = (e) => {
-    // If the first value isn't null, we must apply the search.
     if (e.constraints.constraints[0].value) {
-      // Start the path with /?operator   (and/or)
-      
-      // Will always use the new operator.
       let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
 
-      // If checked, it will keep the search rules from the URL.
-      if(keepSearch){
+      if (keepSearch) {
         const url = window.location.href;
         const parts = url.split('?');
-        if(parts.length > 2){
-          for(let i=2; i<parts.length; i++){
-            path += `/?${parts[i].replace('/', '').trim()}`
+        if (parts.length > 2) {
+          for (let i = 2; i < parts.length; i++) {
+            path += `/?${parts[i].replace('/', '').trim()}`;
           }
         }
       }
-      
-      // Append each matchMode/value pair to the URL.
-      for (const c of e.constraints.constraints){
-        path += `/?search=${encodeURIComponent(c.matchMode)}&` + 
-        `${encodeURIComponent(c.value.trim())}`;
-      }
 
-      // Update URL using the basepath
+      e.constraints.constraints.forEach((c) => {
+        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`;
+      });
+
       window.location.href = `${basePath}${path}`;
     }
   };
@@ -377,7 +211,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage="No results found." 
+      emptyMessage="No results found."
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -391,29 +225,11 @@ export default function Home() {
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
-      <Column header={requiredCheckbox}></Column>
-      <Column field="required" header="Required" sortable />
-      <Column
-        field={display === "nightly" ? "runs" : "pr_runs"}
-        header="Runs"
-        sortable
-      />
-      <Column
-        field={display === "nightly" ? "fails" : "pr_fails"}
-        header="Fails"
-        sortable
-      />
-      <Column
-        field={display === "nightly" ? "skips" : "pr_skips"}
-        header="Skips"
-        sortable
-      />
-      <Column
-        field="weather"
-        header="Weather"
-        body={weatherTemplate}
-        sortable
-      />
+      <Column field = "required" header = "Required" sortable />
+      <Column field = {"runs"}   header = "Runs"     sortable />
+      <Column field = {"fails"}  header = "Fails"    sortable />
+      <Column field = {"skips"}  header = "Skips"    sortable />
+      <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
     </DataTable>
   );
 
@@ -421,8 +237,9 @@ export default function Home() {
     <div className="text-center">
       <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
         <a
-          href={"https://github.com/kata-containers/kata-containers/" +
-          "actions/workflows/ci-nightly.yaml"}
+          href={display === 'nightly' 
+            ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
+            : "https://github.com/kata-containers/kata-containers/actions/workflows/ci-on-push.yaml"}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -430,42 +247,38 @@ export default function Home() {
         </a>
       </h1>
 
-      <div className="flex justify-center mt-4 ml-4">
-        <div className="tabs mr-10">
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "nightly"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
+      <div className="flex justify-between items-center mt-2 ml-4">
+
+        <div className="tabs flex space-x-2">
+          <button className={tabClass(display === "nightly")}
             onClick={() => setDisplay("nightly")}
           >
             Nightly Jobs
           </button>
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "prchecks"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
+          <button className={tabClass(display === "prchecks")}
             onClick={() => setDisplay("prchecks")}
           >
             PR Checks
-          </button> 
+          </button>
         </div>
 
-        <button
-            className={`tab px-4 py-2 border-b-2 ${
-              keepSearch ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
-            onClick={() => setKeepSearch(!keepSearch)}
-          >
+        <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
+                         bg-surface-ground font-normal text-text-color antialiased select-text"}>
+          <button className={buttonClass(keepSearch)} 
+            onClick={() => setKeepSearch(!keepSearch)}>
             Keep URL Search Terms
           </button>
+
+          <button className={buttonClass(requiredFilter)} 
+            onClick={() => setRequiredFilter(!requiredFilter)}>
+            Required Jobs Only
+          </button>
+        </div>
+
       </div>
 
-      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"}>
+      <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto bg-surface-ground \
+                        font-normal text-text-color antialiased select-text"}>
         <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
       </main>
