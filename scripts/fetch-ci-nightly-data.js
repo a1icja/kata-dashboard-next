@@ -45,7 +45,7 @@ async function fetch_workflow_runs() {
   const response = await fetch(ci_nightly_runs_url, {
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: TOKEN,
+      Authorization: `token ${TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
@@ -56,8 +56,8 @@ async function fetch_workflow_runs() {
 
   const json = await response.json();
   fetch_count++;
-  console.log(`fetch ${fetch_count}: ${ci_nightly_runs_url}
-      returned workflow cnt / total cnt: ${json['workflow_runs'].length} / ${json['total_count']}`);
+  // console.log(`fetch ${fetch_count}: ${ci_nightly_runs_url}
+  //     returned workflow cnt / total cnt: ${json['workflow_runs'].length} / ${json['total_count']}`);
   return await json;
 }
 
@@ -67,7 +67,7 @@ async function fetch_main_branch() {
   const response = await fetch(main_branch_url, {
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: TOKEN,
+      Authorization: `token ${TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
@@ -79,8 +79,8 @@ async function fetch_main_branch() {
   const json = await response.json();
   fetch_count++;
   const contexts = json?.protection?.required_status_checks?.contexts;
-  console.log(`fetch ${fetch_count}: ${main_branch_url}
-      required jobs cnt: ${contexts.length}`);
+  // console.log(`fetch ${fetch_count}: ${main_branch_url}
+  //     required jobs cnt: ${contexts.length}`);
   return json;
 }
 
@@ -99,7 +99,7 @@ function get_job_data(run) {
     const response = await fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
-        Authorization: TOKEN,
+        Authorization: `token ${TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
@@ -110,8 +110,8 @@ function get_job_data(run) {
 
     const json = await response.json();
     fetch_count++;
-    console.log(`fetch ${fetch_count}: ${jobs_url}
-      returned jobs cnt / total cnt: ${json['jobs'].length} / ${json['total_count']}`);
+    // console.log(`fetch ${fetch_count}: ${jobs_url}
+    //   returned jobs cnt / total cnt: ${json['jobs'].length} / ${json['total_count']}`);
     return await json;
   }
 
@@ -125,6 +125,7 @@ function get_job_data(run) {
           run_id: job["run_id"],
           html_url: job["html_url"],
           conclusion: job["conclusion"],
+          run_attempt: job["run_attempt"],
         });
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
@@ -138,6 +139,12 @@ function get_job_data(run) {
     id: run["id"],
     run_number: run["run_number"],
     created_at: run["created_at"],
+    // run_attempt: run["run_attempt"],
+    // To implement previous results as well, would have to traverse through
+    // all previous attempt URLs, extracting the job data again.
+    // The job data (conclusion) would also have to be stored in separate arrays,
+    // one for each attempt
+    // previous_attempt_url: run["previous_attempt_url"],
     conclusion: null,
     jobs: [],
   };
@@ -172,6 +179,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           urls: [], // ordered list of URLs associated w/ each run
           results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
+          run_attempt: [], //  e.g. 5, if it was run 5 times
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -191,6 +199,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
         job_stat["results"].push("Pass");
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["run_attempt"].push(job["run_attempt"]);
     }
   }
   return job_stats;
@@ -220,11 +229,11 @@ async function main() {
   var job_stats = compute_job_stats(runs_with_job_data, required_jobs);
 
   // Write the job_stats to console as a JSON object
-  console.log('\n\n FINAL_RESULT: \n\n', JSON.stringify(job_stats));
+  console.log(JSON.stringify(job_stats));
   // console.log(JSON.stringify(required_jobs));
 
   // Print total number of jobs
-  console.log(`\n\nTotal job count: ${Object.keys(job_stats).length}\n\n`);
+  // console.log(`\n\nTotal job count: ${Object.keys(job_stats).length}\n\n`);
 }
 
 

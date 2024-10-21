@@ -76,6 +76,7 @@ export default function Home() {
         fails   : job.fails,
         skips   : job.skips,
         required: job.required,
+        run_attempt: job.run_attempt,
         weather : getWeatherIndex(job),
       }))
     );
@@ -124,6 +125,7 @@ export default function Home() {
         run_num,
         result: job.results[idx],
         url: job.urls[idx],
+        attempt: job.run_attempt[idx],
       };
   
       if (!acc[run_num]) {
@@ -156,12 +158,16 @@ export default function Home() {
             
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
-    
             return (
               <div key={run_num} style={{ display: "flex" }}>
-                <a href={runs[0].url} target="_blank">
-                  {getRunStatusIcon(runs)} {run_num}
-                </a>
+                {runs.map((run, index) => (
+                  <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
+                      <p className="mr-1 font-bold">{run.attempt}</p> 
+                      <a href={run.url} target="_blank">
+                          {getRunStatusIcon(runs)} {run.run_num}
+                      </a>
+                  </div>
+                ))}
                 {count > 1 && (
                   <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
                     <sup
@@ -234,54 +240,57 @@ export default function Home() {
   );
 
   return (
-    <div className="text-center">
-      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
-        <a
-          href={display === 'nightly' 
-            ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
-            : "https://github.com/kata-containers/kata-containers/actions/workflows/ci-on-push.yaml"}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Kata CI Dashboard
-        </a>
-      </h1>
-
-      <div className="flex justify-between items-center mt-2 ml-4">
-
-        <div className="tabs flex space-x-2">
-          <button className={tabClass(display === "nightly")}
-            onClick={() => setDisplay("nightly")}
+    <>
+      <title>Kata CI Dashboard</title>
+      <div className="text-center">
+        <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
+          <a
+            href={display === 'nightly' 
+              ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
+              : "https://github.com/kata-containers/kata-containers/actions/workflows/ci-on-push.yaml"}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            Nightly Jobs
-          </button>
-          <button className={tabClass(display === "prchecks")}
-            onClick={() => setDisplay("prchecks")}
-          >
-            PR Checks
-          </button>
+            Kata CI Dashboard
+          </a>
+        </h1>
+
+        <div className="flex justify-between items-center mt-2 ml-4">
+
+          <div className="tabs flex space-x-2">
+            <button className={tabClass(display === "nightly")}
+              onClick={() => setDisplay("nightly")}
+            >
+              Nightly Jobs
+            </button>
+            <button className={tabClass(display === "prchecks")}
+              onClick={() => setDisplay("prchecks")}
+            >
+              PR Checks
+            </button>
+          </div>
+
+          <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
+                          bg-surface-ground font-normal text-text-color antialiased select-text"}>
+            <button className={buttonClass(keepSearch)} 
+              onClick={() => setKeepSearch(!keepSearch)}>
+              Keep URL Search Terms
+            </button>
+
+            <button className={buttonClass(requiredFilter)} 
+              onClick={() => setRequiredFilter(!requiredFilter)}>
+              Required Jobs Only
+            </button>
+          </div>
+
         </div>
 
-        <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
-                         bg-surface-ground font-normal text-text-color antialiased select-text"}>
-          <button className={buttonClass(keepSearch)} 
-            onClick={() => setKeepSearch(!keepSearch)}>
-            Keep URL Search Terms
-          </button>
-
-          <button className={buttonClass(requiredFilter)} 
-            onClick={() => setRequiredFilter(!requiredFilter)}>
-            Required Jobs Only
-          </button>
-        </div>
-
+        <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto bg-surface-ground \
+                          font-normal text-text-color antialiased select-text"}>
+          <div>{renderTable()}</div>
+          <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
+        </main>
       </div>
-
-      <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto bg-surface-ground \
-                        font-normal text-text-color antialiased select-text"}>
-        <div>{renderTable()}</div>
-        <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
-      </main>
-    </div>
+    </>
   );
 }
