@@ -1,5 +1,5 @@
-name: Fetch CI Nightly Data
-run-name: Fetch CI Nightly Data
+name: Fetch CI PR Data
+run-name: Fetch CI PR Data
 on:
   schedule:
     - cron: '0 12 * * *'
@@ -17,8 +17,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Update dashboard data
         run: |
-          # fetch ci nightly data as temporary file
-          node scripts/fetch-ci-nightly-data.js | tee tmp-data.json
+          # fetch ci pr data as temporary file
+          node scripts/fetch-ci-pr-data.js | tee tmp-data2.json
           # switch to a branch specifically for holding latest data
           git config --global user.name "GH Actions Workflow"
           git config --global user.email "<gha@runner>"
@@ -30,8 +30,8 @@ jobs:
           git rm -r --cached data/
           rm -rf data/
           mkdir -p data/
-          mv tmp-data.json data/job_stats.json
+          mv tmp-data2.json data/check_stats.json
           # commit
           git add data
-          git commit -m '[skip ci] latest ci nightly data'
+          git commit -m '[skip ci] latest ci pr data'
           git push --force

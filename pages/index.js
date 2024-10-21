@@ -76,7 +76,6 @@ export default function Home() {
         fails   : job.fails,
         skips   : job.skips,
         required: job.required,
-        run_attempt: job.run_attempt,
         weather : getWeatherIndex(job),
       }))
     );
@@ -125,7 +124,7 @@ export default function Home() {
         run_num,
         result: job.results[idx],
         url: job.urls[idx],
-        attempt: job.run_attempt[idx],
+        attempts: display === "nightly" ? job.run_attempt[idx] : undefined,
       };
   
       if (!acc[run_num]) {
@@ -162,7 +161,9 @@ export default function Home() {
               <div key={run_num} style={{ display: "flex" }}>
                 {runs.map((run, index) => (
                   <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
-                      <p className="mr-1 font-bold">{run.attempt}</p> 
+                      {display === "nightly" && (
+                        <p className="mr-1 font-bold">{run.attempts}</p> 
+                      )}
                       <a href={run.url} target="_blank">
                           {getRunStatusIcon(runs)} {run.run_num}
                       </a>
