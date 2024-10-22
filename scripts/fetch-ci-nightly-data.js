@@ -19,10 +19,6 @@
 
 // Set token used for making Authorized GitHub API calls
 const TOKEN = process.env.TOKEN;  // In dev, set by .env file; in prod, set by GitHub Secret
-const MAX_CONCURRENT_REQUESTS = 99;
-const MAX_ATTEMPTS = 100;
-
-
   
 // Github API URL for the kata-container ci-nightly workflow's runs. This
 // will only get the most recent 10 runs ('page' is empty, and 'per_page=10').
@@ -40,14 +36,9 @@ var main_branch_url =
 
 // The number of jobs to fetch from the github API on each paged request.
 const jobs_per_request = 100;
-const delay = 1000;
 
 // Count of the number of fetches
 var fetch_count = 0;
-
-var current_fetches = 0;
-
-
 
 // Perform a github API request for workflow runs.
 async function fetch_workflow_runs() {
@@ -70,7 +61,6 @@ async function fetch_workflow_runs() {
   return await json;
 }
 
-
 // Perform a github API request for a list of "Required" jobs
 async function fetch_main_branch() {
   const response = await fetch(main_branch_url, {
@@ -92,7 +82,6 @@ async function fetch_main_branch() {
   //     required jobs cnt: ${contexts.length}`);
   return json;
 }
-
 
 // Get job data about a workflow run
 // Returns a map that has information about a run, e.g.
@@ -169,7 +158,6 @@ function get_required_jobs(main_branch) {
   return required_jobs;
 }
 
-
 // Calculate and return job stats across all runs
 function compute_job_stats(runs_with_job_data, required_jobs) {
   var job_stats = {};
@@ -211,16 +199,8 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
   return job_stats;
 }
 
-
-// For each run of runs_with_jobdata, check run["previous_attempt_url"]
-  // if null, append results (will be null if empty)
-  // else, fetch from prev_url --> get the next prev_url
-        // fetch from prev_url/jobs --> push run.jobs.steps.conclusion, add to correct name
-        // set prev_url to the new url and repeat until next prev_url is null 
-
-        // each run will append 1 result to every job 
   
-        
+// Using the previous URL, fetch the json to get the next URL        
 async function fetch_previous_attempt_url(prev_url) {   
   var jobs_url = `${prev_url}?per_page=${jobs_per_request}&page=1`;
   const response = await fetch(jobs_url, {
@@ -232,17 +212,16 @@ async function fetch_previous_attempt_url(prev_url) {
   });
 
   if (!response.ok) {
-    // const errorBody = await response.text(); 
-    // console.warn(`Failed to fetch attempt url: ${response.statusText}\nDetails: ${errorBody}`);
-    console.warn(`Failed to fetch attempt url: ${response.statusText}`);
-    return null;
+    throw new Error(`Failed to fetch attempt url: ${response.statusText}`);
   }
 
   const json = await response.json();
-  
-  return json;  // Return the JSON on success
+  fetch_count++;
+  return await json;
 }
 
+// Using the previous URL, look at the json with jobs
+// This will have the results for each job for a previous run. 
 async function fetch_attempt_results(prev_url) {   
   var jobs_url = `${prev_url}/jobs`;
   const response = await fetch(jobs_url, {
@@ -254,95 +233,55 @@ async function fetch_attempt_results(prev_url) {
   });
 
   if (!response.ok) {
-    // const errorBody = await response.text(); 
-    // console.warn(`Failed to fetch attempt results: ${response.statusText}\nDetails: ${errorBody}`);
-    console.warn(`Failed to fetch attempt results: ${response.statusText}`);
-    return null;
+    throw new Error(`Failed to fetch attempt results: ${response.statusText}`);
   }
 
+  fetch_count++;
   const json = await response.json();
-  
-  return json;  // Return the JSON on success
+  return await json; 
 }
 
 
-
-// Get the attempt results for reruns.
+// Get the attempt results for reruns for each job in each run.
 async function get_atttempt_results(runs_with_job_data){
-  // const all_attempt_results = {};
-
-  // Iterate through the runs
   for (const run of runs_with_job_data) {
-    // Create an array that stores the results for a specific run and job (all reruns)
-    // const attempt_results = {};
-    // If the run has a previous attempt, process it. 
     var prev_url = run["previous_attempt_url"];
-    // console.log("init prev_url: " + prev_url);
 
-    // continue to fetch results from prev_url until it's null (attempt=1)
+    // If the run has a previous attempt (won't be null), process it. 
+    // Fetch results from prev_url until it's null (no more prior attempts).
     while (prev_url !== null){
-      // console.log("  prev_url: " + prev_url);
-
       // Get json with results for the run, has job information.
       const json1 = await fetch_attempt_results(prev_url); 
-      
       if(json1 === null){
-        console.log("ERROR: json1 empty");
-        break;
-      }
-      
-      // console.log("json1: " + JSON.stringify(json1));
+        throw new Error("json1 empty");
+      }  
 
-      // For each job in the run, append the result to the respective array.
+      // For each job in the run, append the result.
       for (const job of run["jobs"]) {
-        // find the job in the json that matches the current job
+        // Find the job in the json that matches the current job name.
         const matches = json1.jobs.find((j) => j.name === job["name"]);
-
-        // if there is a match, add the conclusion to the results array
         if (matches) {
-          // then, find the last step
+          // Then, find the last step to see the final conclusion for the job.
           const completed = matches.steps.find((step) => step.name === "Complete job");
 
+          // If there is a conclusion, add it to the job's field attempt_results
           if(completed){
-            // first, check that the array for a specific job is initialized. 
+            // Initialize job["attempt_results"] if not initialized before.
             if (!job["attempt_results"]) {
-              // attempt_results[job["name"]] = [];
               job["attempt_results"] = [];
             }
-            // attempt_results[job["name"]].push(completed.conclusion);
             job["attempt_results"].push(completed.conclusion);
           }
         }
       }
-
       // Get json with next attempt URL
       const json2 = await fetch_previous_attempt_url(prev_url);
-
       if(json2 === null){
-        console.log("ERROR: json2 empty");
-        break;
+        throw new Error("json2 empty");
       }
-      // console.log("json2: " + JSON.stringify(json2));
       prev_url = json2.previous_attempt_url
     }
-    // console.log("attempt_results: " + JSON.stringify(attempt_results));
   }
-  // console.log("all_attempt_results: " + JSON.stringify(all_attempt_results));
-    // for (const run of runs_with_job_data) {
-    //   for (const job of run["jobs"]) {
-    //     // push results (will be results or null) to array that separates runs
-    //     all_attempt_results[job["name"]].push(attempt_results[job["name"]]);
-    //   }
-    // } 
-   // after building all the nested result arrays, add depending on the name key. 
-  
-  // for (const run of runs_with_job_data) {
-  //   for (const job of run["jobs"]) {
-  //     if (job["attempt_results"] === undefined) {
-  //       job["attempt_results"] = attempt_results[job["name"]] || null;
-  //     }
-  //   }
-  // }
   return runs_with_job_data;
 }
 
