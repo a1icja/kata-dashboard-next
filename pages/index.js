@@ -82,6 +82,11 @@ export default function Home() {
     setLoading(false);
   }, [jobs, checks, requiredFilter, display]);
 
+  useEffect(() => {
+    setExpandedRows([])
+  }, [display]); 
+
+
   const getWeatherIndex = (stat) => {
     const failRate = (stat.fails + stat.skips) / stat.runs;
     let idx = Math.floor((failRate * 10) / 2);
@@ -179,7 +184,7 @@ export default function Home() {
                         >
                           {run.attempts}
                         </sup>
-                        <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" />
+                        {/* <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" /> */}
                       </span>
                       )}
                   </div>

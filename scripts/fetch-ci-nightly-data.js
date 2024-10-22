@@ -19,6 +19,10 @@
 
 // Set token used for making Authorized GitHub API calls
 const TOKEN = process.env.TOKEN;  // In dev, set by .env file; in prod, set by GitHub Secret
+const MAX_CONCURRENT_REQUESTS = 99;
+const MAX_ATTEMPTS = 100;
+
+
   
 // Github API URL for the kata-container ci-nightly workflow's runs. This
 // will only get the most recent 10 runs ('page' is empty, and 'per_page=10').
@@ -35,9 +39,14 @@ var main_branch_url =
   "kata-containers/kata-containers/branches/main";
 
 // The number of jobs to fetch from the github API on each paged request.
-var jobs_per_request = 100;
+const jobs_per_request = 100;
+const delay = 1000;
+
 // Count of the number of fetches
 var fetch_count = 0;
+
+var current_fetches = 0;
+
 
 
 // Perform a github API request for workflow runs.
@@ -92,27 +101,181 @@ async function fetch_main_branch() {
 //   'jobs' array, which has some details about each job from that run
 function get_job_data(run) {
 
+  async function fetch_previous_attempt_url(prev_url) {   
+    var jobs_url = `${prev_url}?per_page=${jobs_per_request}&page=1`;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
+          await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
+        }
+        current_fetches++;
+
+        console.log("current: "+current_fetches)
+
+        const response = await fetch(jobs_url, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `token ${TOKEN}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        });
+        current_fetches--;
+
+        if (response.ok) {
+          const json = await response.json();
+          return json;  // Return the JSON on success
+        } else {
+          // const errorBody = await response.text(); 
+          // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
+          console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
+        }
+      } catch (error) {
+        console.warn(`Error on attempt ${attempt}: ${error.message}`);
+      }
+  
+      if (attempt < MAX_ATTEMPTS) {
+        // console.log(`Retrying in ${delay} ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
+      }else{
+        return null;
+      }
+    }
+  }
+
+  async function fetch_attempt_results(prev_url) {   
+    var jobs_url = `${prev_url}/jobs`;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
+          await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
+        }
+        current_fetches++;
+        console.log("current: "+current_fetches)
+        const response = await fetch(jobs_url, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `token ${TOKEN}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        });
+
+        current_fetches--;
+
+        if (response.ok) {
+          const json = await response.json();
+          return json;  // Return the JSON on success
+        } else {
+          // const errorBody = await response.text(); 
+          console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
+          // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
+        }
+      } catch (error) {
+        console.warn(`Error on attempt ${attempt}: ${error.message}`);
+      }
+  
+      if (attempt < MAX_ATTEMPTS) {
+        // console.log(`Retrying in ${delay} ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
+      }else{
+        return null;
+      }
+    }
+  }
+  
+  async function get_atttempt_results(job) {
+    var attempt_results = [];
+    var prev_url = run["previous_attempt_url"]; 
+   
+    // console.log(run);
+    // console.log("prev url: " + prev_url);
+    // console.log("");
+
+    while (prev_url) { // Loop until there is no more prev_url
+
+      // Get json with results
+      const json1 = await fetch_attempt_results(prev_url); 
+      // Get json with previous attempt URL
+      const json2 = await fetch_previous_attempt_url(prev_url);
+    
+      if(json1 === null)
+      {
+        console.log("ERROR: json1 empty");
+        break;
+      } 
+    
+      const match = json1.jobs.find((j) => j.name === job["name"]);
+      if (match) {
+        for (const step of match.steps) {
+          if (step.name === "Complete job") {
+            // Push the step conclusion into attempt_results
+            attempt_results.push(step.conclusion);
+          }
+        }
+      } else {
+        console.log(`No matching job found for: ${job["name"]}`);
+      }
+
+      if(json2 === null){
+        console.log("ERROR: json2 empty");
+        break;
+      }
+      prev_url = json2.previous_attempt_url; // Update prev_url for the next attempt
+      // console.log("prev url2: " + prev_url);
+    }
+
+    // Push the job with its attempt results into the main job data
+    run_with_job_data["jobs"].push({
+      name: job["name"],
+      run_id: job["run_id"],
+      html_url: job["html_url"],
+      conclusion: job["conclusion"],
+      run_attempt: job["run_attempt"],
+      attempt_results: attempt_results,
+    });
+  }
+
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
     var jobs_url =
       run["jobs_url"] + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    const response = await fetch(jobs_url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `token ${TOKEN}`,
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch jobs: ${response.status}`);
-    }
-
-    const json = await response.json();
-    fetch_count++;
-    // console.log(`fetch ${fetch_count}: ${jobs_url}
-    //   returned jobs cnt / total cnt: ${json['jobs'].length} / ${json['total_count']}`);
-    return await json;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
+            await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
+          }
+          current_fetches++;
+  
+          console.log("current: "+current_fetches)
+  
+          const response = await fetch(jobs_url, {
+            headers: {
+              Accept: "application/vnd.github+json",
+              Authorization: `token ${TOKEN}`,
+              "X-GitHub-Api-Version": "2022-11-28",
+            },
+          });
+          current_fetches--;
+  
+          if (response.ok) {
+            const json = await response.json();
+            return json;  // Return the JSON on success
+          } else {
+            // const errorBody = await response.text(); 
+            // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
+            console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
+          }
+        } catch (error) {
+          console.warn(`Error on attempt ${attempt}: ${error.message}`);
+        }
+    
+        if (attempt < MAX_ATTEMPTS) {
+          // console.log(`Retrying in ${delay} ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
+        }else{
+          return null;
+        }
+      }
   }
 
   // Fetch the jobs for a run. Extract a few details from the response,
@@ -120,13 +283,18 @@ function get_job_data(run) {
   function fetch_jobs(p) {
     return fetch_jobs_by_page(p).then(function (jobs_request) {
       for (const job of jobs_request["jobs"]) {
-        run_with_job_data["jobs"].push({
-          name: job["name"],
-          run_id: job["run_id"],
-          html_url: job["html_url"],
-          conclusion: job["conclusion"],
-          run_attempt: job["run_attempt"],
-        });
+        if(job["run_attempt"] > 1){
+          // console.log("previous: " + run["previous_attempt_url"]);
+          get_atttempt_results(job);
+        }else{
+            run_with_job_data["jobs"].push({
+            name: job["name"],
+            run_id: job["run_id"],
+            html_url: job["html_url"],
+            conclusion: job["conclusion"],
+            run_attempt: job["run_attempt"],
+          });
+        }
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
         return run_with_job_data;
@@ -139,12 +307,6 @@ function get_job_data(run) {
     id: run["id"],
     run_number: run["run_number"],
     created_at: run["created_at"],
-    // run_attempt: run["run_attempt"],
-    // To implement previous results as well, would have to traverse through
-    // all previous attempt URLs, extracting the job data again.
-    // The job data (conclusion) would also have to be stored in separate arrays,
-    // one for each attempt
-    // previous_attempt_url: run["previous_attempt_url"],
     conclusion: null,
     jobs: [],
   };
@@ -180,6 +342,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
           run_attempt: [], //  e.g. 5, if it was run 5 times
+          attempt_results: [],
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -200,6 +363,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
       job_stat["run_attempt"].push(job["run_attempt"]);
+      job_stat["attempt_results"].push(job["attempt_results"]);
     }
   }
   return job_stats;
