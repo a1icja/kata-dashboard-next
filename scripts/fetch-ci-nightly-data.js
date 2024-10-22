@@ -76,8 +76,6 @@ async function fetch_main_branch() {
   const json = await response.json();
   fetch_count++;
   const contexts = json?.protection?.required_status_checks?.contexts;
-  // console.log(`fetch ${fetch_count}: ${main_branch_url}
-  //     required jobs cnt: ${contexts.length}`);
   return json;
 }
 
@@ -151,7 +149,6 @@ function get_job_data(run) {
 // (i.e. main branch details: protection: required_status_checks: contexts)
 function get_required_jobs(main_branch) {
   var required_jobs = main_branch["protection"]["required_status_checks"]["contexts"];
-  // console.log('required jobs: ', required_jobs);
   return required_jobs;
 }
 
@@ -168,8 +165,8 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           urls: [], // ordered list of URLs associated w/ each run
           results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
-          run_attempt: [], //  e.g. 5, if it was run 5 times
-          attempt_results: [],
+          // run_attempt: [], //  e.g. 5, if it was run 5 times
+          // attempt_results: [],
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -189,8 +186,15 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
         job_stat["results"].push("Pass");
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
-      job_stat["run_attempt"].push(job["run_attempt"]);
-      job_stat["attempt_results"].push(job["attempt_results"]);
+      // job_stat["run_attempt"].push(job["run_attempt"]);
+
+      if(job["attempt_results"]){
+        for(const result of job["attempt_results"]){
+          job_stat["results"].push(result);
+          job_stat["run_nums"].push(run["run_number"]);
+        }
+      }
+      // job_stat["attempt_results"].push(job["attempt_results"]);
     }
   }
   return job_stats;
@@ -247,9 +251,7 @@ async function get_atttempt_results(runs_with_job_data){
     var prev_url = run["previous_attempt_url"];
     // If the run has a previous attempt (won't be null), process it. 
     // Fetch results from prev_url until it's null (no more prior attempts).
-    console.log("init prev_url: " + prev_url);
     while (prev_url !== null){
-    console.log("  prev_url: " + prev_url);
       // Get json with results for the run, has job information.
       const json1 = await fetch_attempt_results(prev_url); 
       if(json1 === null){
@@ -264,7 +266,7 @@ async function get_atttempt_results(runs_with_job_data){
         if (!job["attempt_results"]) {
           job["attempt_results"] = [];
         }
-        
+
         if (matches) {
           // Find the last step to see the final conclusion for the job.
           const completed = matches.steps.find((step) => 
@@ -307,7 +309,6 @@ async function main() {
 
   // Fetch required jobs from main branch
   var main_branch = await fetch_main_branch();
-  // console.log('main_branch: ', main_branch);
   var required_jobs = get_required_jobs(main_branch);
 
   // Fetch job data for each of the runs.
@@ -316,8 +317,8 @@ async function main() {
   for (const run of workflow_runs["workflow_runs"]) {
     promises_buf.push(get_job_data(run));
   }
-
   var runs_with_job_data = await Promise.all(promises_buf);
+  
   // Get the attempt_results for each job.
   runs_with_job_data = await get_atttempt_results(runs_with_job_data)
 

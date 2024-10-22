@@ -129,7 +129,6 @@ export default function Home() {
         run_num,
         result: job.results[idx],
         url: job.urls[idx],
-        attempts: display === "nightly" ? job.run_attempt[idx] : undefined,
       };
   
       if (!acc[run_num]) {
@@ -170,26 +169,12 @@ export default function Home() {
                   )
                   .map((run, index) => (
                     <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
-                      {/* {display === "nightly" && (
-                        <p className="mr-1 font-bold">{run.attempts}</p> 
-                      )} */}
                       <a href={run.url} target="_blank">
                           {getRunStatusIcon(runs)} {run.run_num}
                       </a>
-                      {display === "nightly" && (
-                      <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
-                        <sup
-                          id={badgeId}
-                          style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
-                        >
-                          {run.attempts}
-                        </sup>
-                        {/* <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" /> */}
-                      </span>
-                      )}
                   </div>
                 ))}
-                {display === "prchecks" && (
+                {count > 1 && (
                   <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
                     <sup
                       id={badgeId}
