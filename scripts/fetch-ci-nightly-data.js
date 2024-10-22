@@ -101,181 +101,27 @@ async function fetch_main_branch() {
 //   'jobs' array, which has some details about each job from that run
 function get_job_data(run) {
 
-  async function fetch_previous_attempt_url(prev_url) {   
-    var jobs_url = `${prev_url}?per_page=${jobs_per_request}&page=1`;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
-          await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
-        }
-        current_fetches++;
-
-        console.log("current: "+current_fetches)
-
-        const response = await fetch(jobs_url, {
-          headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: `token ${TOKEN}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        });
-        current_fetches--;
-
-        if (response.ok) {
-          const json = await response.json();
-          return json;  // Return the JSON on success
-        } else {
-          // const errorBody = await response.text(); 
-          // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
-          console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
-        }
-      } catch (error) {
-        console.warn(`Error on attempt ${attempt}: ${error.message}`);
-      }
-  
-      if (attempt < MAX_ATTEMPTS) {
-        // console.log(`Retrying in ${delay} ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
-      }else{
-        return null;
-      }
-    }
-  }
-
-  async function fetch_attempt_results(prev_url) {   
-    var jobs_url = `${prev_url}/jobs`;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
-          await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
-        }
-        current_fetches++;
-        console.log("current: "+current_fetches)
-        const response = await fetch(jobs_url, {
-          headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: `token ${TOKEN}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        });
-
-        current_fetches--;
-
-        if (response.ok) {
-          const json = await response.json();
-          return json;  // Return the JSON on success
-        } else {
-          // const errorBody = await response.text(); 
-          console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
-          // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
-        }
-      } catch (error) {
-        console.warn(`Error on attempt ${attempt}: ${error.message}`);
-      }
-  
-      if (attempt < MAX_ATTEMPTS) {
-        // console.log(`Retrying in ${delay} ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
-      }else{
-        return null;
-      }
-    }
-  }
-  
-  async function get_atttempt_results(job) {
-    var attempt_results = [];
-    var prev_url = run["previous_attempt_url"]; 
-   
-    // console.log(run);
-    // console.log("prev url: " + prev_url);
-    // console.log("");
-
-    while (prev_url) { // Loop until there is no more prev_url
-
-      // Get json with results
-      const json1 = await fetch_attempt_results(prev_url); 
-      // Get json with previous attempt URL
-      const json2 = await fetch_previous_attempt_url(prev_url);
-    
-      if(json1 === null)
-      {
-        console.log("ERROR: json1 empty");
-        break;
-      } 
-    
-      const match = json1.jobs.find((j) => j.name === job["name"]);
-      if (match) {
-        for (const step of match.steps) {
-          if (step.name === "Complete job") {
-            // Push the step conclusion into attempt_results
-            attempt_results.push(step.conclusion);
-          }
-        }
-      } else {
-        console.log(`No matching job found for: ${job["name"]}`);
-      }
-
-      if(json2 === null){
-        console.log("ERROR: json2 empty");
-        break;
-      }
-      prev_url = json2.previous_attempt_url; // Update prev_url for the next attempt
-      // console.log("prev url2: " + prev_url);
-    }
-
-    // Push the job with its attempt results into the main job data
-    run_with_job_data["jobs"].push({
-      name: job["name"],
-      run_id: job["run_id"],
-      html_url: job["html_url"],
-      conclusion: job["conclusion"],
-      run_attempt: job["run_attempt"],
-      attempt_results: attempt_results,
-    });
-  }
-
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
     var jobs_url =
       run["jobs_url"] + "?per_page=" + jobs_per_request + "&page=" + which_page;
+    const response = await fetch(jobs_url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `token ${TOKEN}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
 
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-          while (current_fetches >= MAX_CONCURRENT_REQUESTS) {
-            await new Promise((resolve) => setTimeout(resolve, delay));  // Wait 100 ms before checking again
-          }
-          current_fetches++;
-  
-          console.log("current: "+current_fetches)
-  
-          const response = await fetch(jobs_url, {
-            headers: {
-              Accept: "application/vnd.github+json",
-              Authorization: `token ${TOKEN}`,
-              "X-GitHub-Api-Version": "2022-11-28",
-            },
-          });
-          current_fetches--;
-  
-          if (response.ok) {
-            const json = await response.json();
-            return json;  // Return the JSON on success
-          } else {
-            // const errorBody = await response.text(); 
-            // console.warn(`Attempt ${attempt} failed: ${response.statusText}\nDetails: ${errorBody}`);
-            console.warn(`Attempt ${attempt} failed: ${response.statusText}`);
-          }
-        } catch (error) {
-          console.warn(`Error on attempt ${attempt}: ${error.message}`);
-        }
-    
-        if (attempt < MAX_ATTEMPTS) {
-          // console.log(`Retrying in ${delay} ms...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));  // Delay before retry
-        }else{
-          return null;
-        }
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to fetch jobs: ${response.status}`);
+    }
+
+    const json = await response.json();
+    fetch_count++;
+    // console.log(`fetch ${fetch_count}: ${jobs_url}
+    //   returned jobs cnt / total cnt: ${json['jobs'].length} / ${json['total_count']}`);
+    return await json;
   }
 
   // Fetch the jobs for a run. Extract a few details from the response,
@@ -283,18 +129,13 @@ function get_job_data(run) {
   function fetch_jobs(p) {
     return fetch_jobs_by_page(p).then(function (jobs_request) {
       for (const job of jobs_request["jobs"]) {
-        if(job["run_attempt"] > 1){
-          // console.log("previous: " + run["previous_attempt_url"]);
-          get_atttempt_results(job);
-        }else{
-            run_with_job_data["jobs"].push({
-            name: job["name"],
-            run_id: job["run_id"],
-            html_url: job["html_url"],
-            conclusion: job["conclusion"],
-            run_attempt: job["run_attempt"],
-          });
-        }
+        run_with_job_data["jobs"].push({
+          name: job["name"],
+          run_id: job["run_id"],
+          html_url: job["html_url"],
+          conclusion: job["conclusion"],
+          run_attempt: job["run_attempt"],
+        });
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
         return run_with_job_data;
@@ -307,6 +148,7 @@ function get_job_data(run) {
     id: run["id"],
     run_number: run["run_number"],
     created_at: run["created_at"],
+    previous_attempt_url: run["previous_attempt_url"],
     conclusion: null,
     jobs: [],
   };
@@ -370,6 +212,140 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
 }
 
 
+// For each run of runs_with_jobdata, check run["previous_attempt_url"]
+  // if null, append results (will be null if empty)
+  // else, fetch from prev_url --> get the next prev_url
+        // fetch from prev_url/jobs --> push run.jobs.steps.conclusion, add to correct name
+        // set prev_url to the new url and repeat until next prev_url is null 
+
+        // each run will append 1 result to every job 
+  
+        
+async function fetch_previous_attempt_url(prev_url) {   
+  var jobs_url = `${prev_url}?per_page=${jobs_per_request}&page=1`;
+  const response = await fetch(jobs_url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `token ${TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+
+  if (!response.ok) {
+    // const errorBody = await response.text(); 
+    // console.warn(`Failed to fetch attempt url: ${response.statusText}\nDetails: ${errorBody}`);
+    console.warn(`Failed to fetch attempt url: ${response.statusText}`);
+    return null;
+  }
+
+  const json = await response.json();
+  
+  return json;  // Return the JSON on success
+}
+
+async function fetch_attempt_results(prev_url) {   
+  var jobs_url = `${prev_url}/jobs`;
+  const response = await fetch(jobs_url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `token ${TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+
+  if (!response.ok) {
+    // const errorBody = await response.text(); 
+    // console.warn(`Failed to fetch attempt results: ${response.statusText}\nDetails: ${errorBody}`);
+    console.warn(`Failed to fetch attempt results: ${response.statusText}`);
+    return null;
+  }
+
+  const json = await response.json();
+  
+  return json;  // Return the JSON on success
+}
+
+
+
+// Get the attempt results for reruns.
+async function get_atttempt_results(runs_with_job_data){
+  // const all_attempt_results = {};
+
+  // Iterate through the runs
+  for (const run of runs_with_job_data) {
+    // Create an array that stores the results for a specific run and job (all reruns)
+    // const attempt_results = {};
+    // If the run has a previous attempt, process it. 
+    var prev_url = run["previous_attempt_url"];
+    // console.log("init prev_url: " + prev_url);
+
+    // continue to fetch results from prev_url until it's null (attempt=1)
+    while (prev_url !== null){
+      // console.log("  prev_url: " + prev_url);
+
+      // Get json with results for the run, has job information.
+      const json1 = await fetch_attempt_results(prev_url); 
+      
+      if(json1 === null){
+        console.log("ERROR: json1 empty");
+        break;
+      }
+      
+      // console.log("json1: " + JSON.stringify(json1));
+
+      // For each job in the run, append the result to the respective array.
+      for (const job of run["jobs"]) {
+        // find the job in the json that matches the current job
+        const matches = json1.jobs.find((j) => j.name === job["name"]);
+
+        // if there is a match, add the conclusion to the results array
+        if (matches) {
+          // then, find the last step
+          const completed = matches.steps.find((step) => step.name === "Complete job");
+
+          if(completed){
+            // first, check that the array for a specific job is initialized. 
+            if (!job["attempt_results"]) {
+              // attempt_results[job["name"]] = [];
+              job["attempt_results"] = [];
+            }
+            // attempt_results[job["name"]].push(completed.conclusion);
+            job["attempt_results"].push(completed.conclusion);
+          }
+        }
+      }
+
+      // Get json with next attempt URL
+      const json2 = await fetch_previous_attempt_url(prev_url);
+
+      if(json2 === null){
+        console.log("ERROR: json2 empty");
+        break;
+      }
+      // console.log("json2: " + JSON.stringify(json2));
+      prev_url = json2.previous_attempt_url
+    }
+    // console.log("attempt_results: " + JSON.stringify(attempt_results));
+  }
+  // console.log("all_attempt_results: " + JSON.stringify(all_attempt_results));
+    // for (const run of runs_with_job_data) {
+    //   for (const job of run["jobs"]) {
+    //     // push results (will be results or null) to array that separates runs
+    //     all_attempt_results[job["name"]].push(attempt_results[job["name"]]);
+    //   }
+    // } 
+   // after building all the nested result arrays, add depending on the name key. 
+  
+  // for (const run of runs_with_job_data) {
+  //   for (const job of run["jobs"]) {
+  //     if (job["attempt_results"] === undefined) {
+  //       job["attempt_results"] = attempt_results[job["name"]] || null;
+  //     }
+  //   }
+  // }
+  return runs_with_job_data;
+}
+
 async function main() {
   // Fetch recent workflow runs via the github API
   var workflow_runs = await fetch_workflow_runs();
@@ -385,7 +361,10 @@ async function main() {
   for (const run of workflow_runs["workflow_runs"]) {
     promises_buf.push(get_job_data(run));
   }
-  runs_with_job_data = await Promise.all(promises_buf);
+  var runs_with_job_data = await Promise.all(promises_buf);
+
+  
+  runs_with_job_data = await get_atttempt_results(runs_with_job_data)
 
   // Transform the raw details of each run and its jobs' results into a
   // an array of just the jobs and their overall results (e.g. pass or fail,
