@@ -56,8 +56,6 @@ async function fetch_workflow_runs() {
 
   const json = await response.json();
   fetch_count++;
-  // console.log(`fetch ${fetch_count}: ${ci_nightly_runs_url}
-  //     returned workflow cnt / total cnt: ${json['workflow_runs'].length} / ${json['total_count']}`);
   return await json;
 }
 
@@ -108,8 +106,6 @@ function get_job_data(run) {
 
     const json = await response.json();
     fetch_count++;
-    // console.log(`fetch ${fetch_count}: ${jobs_url}
-    //   returned jobs cnt / total cnt: ${json['jobs'].length} / ${json['total_count']}`);
     return await json;
   }
 
@@ -151,7 +147,8 @@ function get_job_data(run) {
 }
 
 
-// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
+// Extract list of required jobs 
+// (i.e. main branch details: protection: required_status_checks: contexts)
 function get_required_jobs(main_branch) {
   var required_jobs = main_branch["protection"]["required_status_checks"]["contexts"];
   // console.log('required jobs: ', required_jobs);
@@ -243,35 +240,54 @@ async function fetch_attempt_results(prev_url) {
 
 
 // Get the attempt results for reruns for each job in each run.
+// This constructs the field "attempt_results" for each job
+// Field will have the result for each rerun. If no reruns, it's null.
 async function get_atttempt_results(runs_with_job_data){
   for (const run of runs_with_job_data) {
     var prev_url = run["previous_attempt_url"];
-
     // If the run has a previous attempt (won't be null), process it. 
     // Fetch results from prev_url until it's null (no more prior attempts).
+    console.log("init prev_url: " + prev_url);
     while (prev_url !== null){
+    console.log("  prev_url: " + prev_url);
       // Get json with results for the run, has job information.
       const json1 = await fetch_attempt_results(prev_url); 
       if(json1 === null){
         throw new Error("json1 empty");
       }  
-
       // For each job in the run, append the result.
       for (const job of run["jobs"]) {
         // Find the job in the json that matches the current job name.
         const matches = json1.jobs.find((j) => j.name === job["name"]);
-        if (matches) {
-          // Then, find the last step to see the final conclusion for the job.
-          const completed = matches.steps.find((step) => step.name === "Complete job");
 
-          // If there is a conclusion, add it to the job's field attempt_results
+        // Initialize job["attempt_results"] if not initialized before.
+        if (!job["attempt_results"]) {
+          job["attempt_results"] = [];
+        }
+        
+        if (matches) {
+          // Find the last step to see the final conclusion for the job.
+          const completed = matches.steps.find((step) => 
+                                                step.name === "Complete job");
+          // If there's a conclusion, add it to the job's attempt_results.
           if(completed){
-            // Initialize job["attempt_results"] if not initialized before.
-            if (!job["attempt_results"]) {
-              job["attempt_results"] = [];
+            if (completed.conclusion != "success") {
+              if (completed.conclusion == "skipped") {
+                job["attempt_results"].push("Skip");
+              } else {
+                // failed or cancelled
+                job["attempt_results"].push("Fail");
+              }
+            } else {
+              job["attempt_results"].push("Pass");
             }
-            job["attempt_results"].push(completed.conclusion);
+          } else {
+            // Never completed
+            job["attempt_results"].push("Fail");
           }
+        } else {
+          // Not Ran
+          job["attempt_results"].push("Skip");
         }
       }
       // Get json with next attempt URL
@@ -300,9 +316,9 @@ async function main() {
   for (const run of workflow_runs["workflow_runs"]) {
     promises_buf.push(get_job_data(run));
   }
-  var runs_with_job_data = await Promise.all(promises_buf);
 
-  
+  var runs_with_job_data = await Promise.all(promises_buf);
+  // Get the attempt_results for each job.
   runs_with_job_data = await get_atttempt_results(runs_with_job_data)
 
   // Transform the raw details of each run and its jobs' results into a
@@ -312,7 +328,6 @@ async function main() {
 
   // Write the job_stats to console as a JSON object
   console.log(JSON.stringify(job_stats));
-  // console.log(JSON.stringify(required_jobs));
 
   // Print total number of jobs
   // console.log(`\n\nTotal job count: ${Object.keys(job_stats).length}\n\n`);
