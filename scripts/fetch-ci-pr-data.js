@@ -154,7 +154,6 @@ function get_required_jobs(main_branch) {
 // Calculate and return check stats across all runs
 function compute_check_stats(prs_with_check_data, required_jobs) {
   const check_stats = {};
-  const discovered = {};
   for (const pr of prs_with_check_data) {
     for (const check of pr["checks"]) {
         if (!(check["name"] in check_stats)) {
@@ -172,16 +171,8 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
             const check_stat = check_stats[check["name"]];
             check_stat["runs"] += 1;
             check_stat["urls"].push(pr["html_url"])
-            if (!discovered[check["name"]]) {
-              discovered[check["name"]] = new Set();
-            }
             if (check_stat["run_nums"].includes(pr["number"])) {
-              if(discovered[check["name"]].has(pr["number"])){
                 check_stat["reruns"] += 1;
-              } else{
-                discovered[check["name"]].add(pr["number"]);
-                check_stat["reruns"] += 2;
-              }
             }
             check_stat["run_nums"].push(pr["number"])
             if (check["conclusion"] != "success") {

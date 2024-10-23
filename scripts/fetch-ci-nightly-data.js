@@ -185,17 +185,11 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
       
-      discovered = new Set();
       if(job["attempt_results"]){
         for(const result of job["attempt_results"]){
-          if(discovered.has(run["run_number"])){
-            job_stat["reruns"] += 1;
-          }else{
-            discovered.add(run["run_number"]);
-            job_stat["reruns"] += 2;
-          }
           job_stat["results"].push(result);
           job_stat["run_nums"].push(run["run_number"]);
+          job_stat["reruns"] += 1;
         }
       }
     }
