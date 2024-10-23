@@ -154,19 +154,18 @@ function get_required_jobs(main_branch) {
 
 // Calculate and return job stats across all runs
 function compute_job_stats(runs_with_job_data, required_jobs) {
-  var job_stats = {};
+  const job_stats = {};
   for (const run of runs_with_job_data) {
     for (const job of run["jobs"]) {
       if (!(job["name"] in job_stats)) {
         job_stats[job["name"]] = {
-          runs: 0, // e.g. 10, if it ran 10 times
-          fails: 0, // e.g. 3, if it failed 3 out of 10 times
-          skips: 0, // e.g. 7, if it got skipped the other 7 times
-          urls: [], // ordered list of URLs associated w/ each run
-          results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
+          runs: 0,      // e.g. 10, if it ran 10 times
+          fails: 0,     // e.g. 3, if it failed 3 out of 10 times
+          skips: 0,     // e.g. 7, if it got skipped the other 7 times
+          urls: [],     // ordered list of URLs associated w/ each run
+          results: [],  // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
-          // run_attempt: [], //  e.g. 5, if it was run 5 times
-          // attempt_results: [],
+          reruns: 0,    // the total number of times the test was rerun
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -186,15 +185,20 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
         job_stat["results"].push("Pass");
       }
       job_stat["required"] = required_jobs.includes(job["name"]);
-      // job_stat["run_attempt"].push(job["run_attempt"]);
-
+      
+      discovered = new Set();
       if(job["attempt_results"]){
         for(const result of job["attempt_results"]){
+          if(discovered.has(run["run_number"])){
+            job_stat["reruns"] += 1;
+          }else{
+            discovered.add(run["run_number"]);
+            job_stat["reruns"] += 2;
+          }
           job_stat["results"].push(result);
           job_stat["run_nums"].push(run["run_number"]);
         }
       }
-      // job_stat["attempt_results"].push(job["attempt_results"]);
     }
   }
   return job_stats;

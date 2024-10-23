@@ -77,6 +77,7 @@ export default function Home() {
         skips   : job.skips,
         required: job.required,
         weather : getWeatherIndex(job),
+        reruns  : job.reruns,
       }))
     );
     setLoading(false);
@@ -237,10 +238,11 @@ export default function Home() {
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
-      <Column field = "required" header = "Required" sortable />
+      <Column field = {"required"} header = "Required" sortable />
       <Column field = {"runs"}   header = "Runs"     sortable />
       <Column field = {"fails"}  header = "Fails"    sortable />
       <Column field = {"skips"}  header = "Skips"    sortable />
+      <Column field = {"reruns"}  header = "Reruns"    sortable />
       <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
     </DataTable>
   );

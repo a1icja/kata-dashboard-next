@@ -155,23 +155,36 @@ function get_required_jobs(main_branch) {
 
 // Calculate and return check stats across all runs
 function compute_check_stats(prs_with_check_data, required_jobs) {
-  var check_stats = {};
+  const check_stats = {};
+  const discovered = {};
   for (const pr of prs_with_check_data) {
     for (const check of pr["checks"]) {
         if (!(check["name"] in check_stats)) {
             check_stats[check["name"]] = {
-                runs: 0,     // e.g. 10, if it ran 10 times
-                fails: 0,    // e.g. 3, if it failed 3 out of 10 times
-                skips: 0,    // e.g. 7, if it got skipped the other 7 times
-                urls: [],    // list of PR URLs that this check is associated with
-                results: [], // list of check statuses for the PRs in which the check was run
-                run_nums: [],    // list of PR numbers that this check is associated with
+                runs: 0,      // e.g. 10, if it ran 10 times
+                fails: 0,     // e.g. 3, if it failed 3 out of 10 times
+                skips: 0,     // e.g. 7, if it got skipped the other 7 times
+                urls: [],     // list of PR URLs that this check is associated with
+                results: [],  // list of check statuses for the PRs in which the check was run
+                run_nums: [], // list of PR numbers that this check is associated with
+                reruns: 0,    // the total number of times the test was rerun
             };
         }
         if ((check["name"] in check_stats)) {
             var check_stat = check_stats[check["name"]];
             check_stat["runs"] += 1;
             check_stat["urls"].push(pr["html_url"])
+            if (!discovered[check["name"]]) {
+              discovered[check["name"]] = new Set();
+            }
+            if (check_stat["run_nums"].includes(pr["number"])) {
+              if(discovered[check["name"]].has(pr["number"])){
+                check_stat["reruns"] += 1;
+              } else{
+                discovered[check["name"]].add(pr["number"]);
+                check_stat["reruns"] += 2;
+              }
+            }
             check_stat["run_nums"].push(pr["number"])
             if (check["conclusion"] != "success") {
             if (check["conclusion"] == "skipped") {
