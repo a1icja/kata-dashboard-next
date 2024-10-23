@@ -89,6 +89,7 @@ export default function Home() {
         skips   : job.skips,
         required: job.required,
         weather : getWeatherIndex(job),
+        reruns  : job.reruns,
       }))
     );
     setLoading(false);
@@ -141,7 +142,6 @@ export default function Home() {
         run_num,
         result: job.results[idx],
         url: job.urls[idx],
-        attempts: display === "nightly" ? job.run_attempt[idx] : undefined,
       };
   
       if (!acc[run_num]) {
@@ -182,26 +182,13 @@ export default function Home() {
                   )
                   .map((run, index) => (
                     <div key={index} style={{ display: "flex", alignItems: "center" }}>
-                      {/* {display === "nightly" && (
-                        <p className="mr-1 font-bold">{run.attempts}</p> 
-                      )} */}
+
                       <a href={run.url} target="_blank">
                           {getRunStatusIcon(runs)} {run.run_num}
                       </a>
-                      {display === "nightly" && (
-                      <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
-                        <sup
-                          id={badgeId}
-                          style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
-                        >
-                          {run.attempts}
-                        </sup>
-                        {/* <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" /> */}
-                      </span>
-                      )}
                   </div>
                 ))}
-                {display === "prchecks" && (
+                {count > 1 && (
                   <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
                     <sup
                       id={badgeId}
@@ -273,10 +260,11 @@ export default function Home() {
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
       />
-      <Column field = "required" header = "Required" sortable />
+      <Column field = {"required"} header = "Required" sortable />
       <Column field = {"runs"}   header = "Runs"     sortable />
       <Column field = {"fails"}  header = "Fails"    sortable />
       <Column field = {"skips"}  header = "Skips"    sortable />
+      <Column field = {"reruns"}  header = "Reruns"    sortable />
       <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
     </DataTable>
   );
