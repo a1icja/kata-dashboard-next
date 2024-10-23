@@ -101,7 +101,7 @@ export default function Home() {
 
 
   const getWeatherIndex = (stat) => {
-    const failRate = (stat.fails + stat.skips) / stat.runs;
+    const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns);
     let idx = Math.floor((failRate * 10) / 2);
     if (idx === icons.length) idx -= 1;
     return isNaN(idx) ? 4 : idx;
