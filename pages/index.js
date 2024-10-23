@@ -8,6 +8,7 @@ import { Tooltip }   from 'primereact/tooltip';
 import NightlyData  from "../data/job_stats.json";
 import PRData       from "../data/check_stats.json";
 import { basePath } from "../next.config.js";
+import BarChart from './BarChart'; 
 
 
 export default function Home() {
@@ -43,6 +44,17 @@ export default function Home() {
     };
     fetchData();
   }, []);
+
+  const getTotalStats = (data) => {
+    return data.reduce((acc, job) => {
+      acc.runs += job.runs;
+      acc.fails += job.fails;
+      acc.skips += job.skips;
+      return acc;
+    }, { runs: 0, fails: 0, skips: 0 });
+  };
+
+  const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
 
   const applyFilter = (filteredJobs, parts) => {
     for (let i = 2; i < parts.length; i++) {
@@ -169,7 +181,7 @@ export default function Home() {
                     self.findIndex(r => r.run_num === run.run_num) === index // Skip duplicates
                   )
                   .map((run, index) => (
-                    <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "1rem" }}>
+                    <div key={index} style={{ display: "flex", alignItems: "center" }}>
                       {/* {display === "nightly" && (
                         <p className="mr-1 font-bold">{run.attempts}</p> 
                       )} */}
@@ -203,6 +215,15 @@ export default function Home() {
               </div>
             );
           })}
+        </div>
+        <div>
+          <br/>Maintainer: <a 
+            href="https://github.com/sprt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 underline">
+              Aurelien Bombo
+          </a>
         </div>
       </div>
     );
@@ -264,7 +285,7 @@ export default function Home() {
     <>
       <title>Kata CI Dashboard</title>
       <div className="text-center">
-        <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
+        <h1 className={"text-4xl mt-4 mb-6 underline text-inherit hover:text-blue-500"}>
           <a
             href={display === 'nightly' 
               ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
@@ -289,6 +310,10 @@ export default function Home() {
             >
               PR Checks
             </button>
+          </div>
+
+          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '450px', height: '100px' }}>
+            <BarChart data={totalStats} />
           </div>
 
           <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
