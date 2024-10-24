@@ -82,7 +82,7 @@ export default function Home() {
     if (urlParts[1]) filteredJobs = applyFilter(filteredJobs, urlParts);
 
     setRows(
-      filteredJobs.map((job) => ({
+      filteredJobs.map((job, idx) => ({
         name    : job.name,
         runs    : job.runs,
         fails   : job.fails,
@@ -90,6 +90,7 @@ export default function Home() {
         required: job.required,
         weather : getWeatherIndex(job),
         reruns  : job.reruns,
+        total_reruns  : job.reruns.reduce((total, r) => total + r, 0),
       }))
     );
     setLoading(false);
@@ -101,7 +102,7 @@ export default function Home() {
 
 
   const getWeatherIndex = (stat) => {
-    const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns);
+    const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns.reduce((total, r) => total + r, 0));
     let idx = Math.floor((failRate * 10) / 2);
     if (idx === icons.length) idx -= 1;
     return isNaN(idx) ? 4 : idx;
@@ -137,68 +138,80 @@ export default function Home() {
     if (!job) return <div className="p-3 bg-gray-100">No data available for this job.</div>;
 
     // Aggregate runs by run_num
-    const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
-      const run = {
-        run_num,
-        result: job.results[idx],
-        url: job.urls[idx],
-      };
+    // const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
+    //   const run = {
+    //     run_num,
+    //     result: job.results[idx],
+    //     url: job.urls[idx],
+    //   };
   
-      if (!acc[run_num]) {
-        acc[run_num] = { runs: [run], count: 1 };
-      } else {
-        acc[run_num].runs.push(run);
-        acc[run_num].count += 1;
-      }
-      return acc;
-    }, {});
+    //   if (!acc[run_num]) {
+    //     acc[run_num] = { runs: [run], count: 1 };
+    //   } else {
+    //     acc[run_num].runs.push(run);
+    //     acc[run_num].count += 1;
+    //   }
+    //   return acc;
+    // }, {});
   
-    const runEntries = Object.entries(aggregatedRuns);
+    // const runEntries = Object.entries(aggregatedRuns);
+
+    const runEntries = job.run_nums.map((run_num, idx) => ({
+      run_num,
+      result: job.results[idx],
+      reruns: job.reruns[idx],
+      rerun_result: job.rerun_results[idx],
+      url: job.urls[idx],
+    }));    
   
     const getRunStatusIcon = (runs) => {
-      const allPass = runs.every(run => run.result === "Pass");
-      const allFail = runs.every(run => run.result === "Fail");
-  
-      if (allPass) return "✅";
-      if (allFail) return "❌";
+      if (Array.isArray(runs)) {
+        const allPass = runs.every(run => run === "Pass");
+        const allFail = runs.every(run => run === "Fail");
+    
+        if (allPass) return "✅";
+        if (allFail) return "❌";
+      } else if (runs === "Pass") {
+        return "✅";
+      } else if (runs === "Fail") {
+        return "❌";
+      }
+    
       return "⚠️";  // return this if mix of statuses
     };
 
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-          {runEntries.map(([run_num, { runs, count }]) => {
-            const runStatuses = runs
-              .map((run) => `${run.result === 'Pass' ? '✅ Success' : run.result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
-              .join('\n');
+        {/* {runEntries.map(([run_num, { runs, count }]) => { */}
+          {runEntries.map(({run_num, result, reruns, rerun_result, url }, idx) => {
+            const runStatuses = rerun_result
+              ? rerun_result.map((result) => `${result === 'Pass' ? '✅ Success' : result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
+              .join('\n')
+              : '';
             
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
             return (
               <div key={run_num} style={{ display: "flex" }}>
-                {runs
-                  .filter((run, index, self) => 
-                    self.findIndex(r => r.run_num === run.run_num) === index // Skip duplicates
-                  )
-                  .map((run, index) => (
-                    <div key={index} style={{ display: "flex", alignItems: "center" }}>
-
-                      <a href={run.url} target="_blank">
-                          {getRunStatusIcon(runs)} {run.run_num}
-                      </a>
-                  </div>
-                ))}
-                {count > 1 && (
-                  <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
+                <div key={idx} style={{ display: "flex", alignItems: "center" }}>
+                  <a href={url} target="_blank">
+                    {reruns > 1 
+                      ? getRunStatusIcon(rerun_result) 
+                      : getRunStatusIcon(result)} {run_num}
+                  </a>
+                </div>
+                  {reruns > 1 &&(
+                    <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
                     <sup
                       id={badgeId}
                       style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
                     >
-                      {count}
+                      {reruns}
                     </sup>
-                    <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" />
+                    <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" tooltipOptions={{ autoHide: 'false' }}/>
                   </span>
-                )}
+                  )}
               </div>
             );
           })}
@@ -261,10 +274,19 @@ export default function Home() {
         filterPlaceholder="Search..."
       />
       <Column field = {"required"} header = "Required" sortable />
-      <Column field = {"runs"}   header = "Runs"     sortable />
+      <Column field = {"runs"}   
+              header = "Runs"
+              className="whitespace-nowrap px-2"
+              // body={(data) => (
+              //   <span className="whitespace-nowrap">
+              //     <span className="font-bold">{data.runs + data.total_reruns}</span> 
+              //     {data.total_reruns > 0 ? ` (${data.total_reruns} reruns)` : ''}
+              //   </span>
+              // )}            
+              sortable />
+      <Column field = {"total_reruns"}  header = "Reruns"    sortable />
       <Column field = {"fails"}  header = "Fails"    sortable />
       <Column field = {"skips"}  header = "Skips"    sortable />
-      <Column field = {"reruns"}  header = "Reruns"    sortable />
       <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
     </DataTable>
   );

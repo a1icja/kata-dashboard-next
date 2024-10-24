@@ -117,7 +117,7 @@ function get_job_data(run) {
           run_id: job["run_id"],
           html_url: job["html_url"],
           conclusion: job["conclusion"],
-          run_attempt: job["run_attempt"],
+          reruns: job["run_attempt"] - 1,
         });
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
@@ -152,17 +152,10 @@ function get_required_jobs(main_branch) {
 }
 
 function process_results(result, job_stat){
-  if (result !== "success") {
-    if (result === "skipped") {
-      job_stat["skips"] += 1;
-      job_stat["results"].push("Skip");
-    } else {
-      // failed or cancelled
-      job_stat["fails"] += 1;
-      job_stat["results"].push("Fail");
-    }
-  } else {
-    job_stat["results"].push("Pass");
+  if (result === "Skip") {
+    job_stat["skips"] += 1;
+  } else if (result === "Fail"){
+    job_stat["fails"] += 1;
   }
   return job_stat;
 }
@@ -180,7 +173,8 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           urls: [],     // ordered list of URLs associated w/ each run
           results: [],  // an array of strings, e.g. 'Pass', 'Fail', ...
           run_nums: [], // ordered list of github-assigned run numbers
-          reruns: 0,    // the total number of times the test was rerun
+          reruns: [],    // the total number of times the test was rerun
+          rerun_results: [], // an array of strings, e.g. 'Pass', 'Fail', for reruns
         };
       }
       var job_stat = job_stats[job["name"]];
@@ -188,13 +182,27 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
       job_stat["run_nums"].push(run["run_number"]);
       job_stat["urls"].push(job["html_url"]);
       job_stat["required"] = required_jobs.includes(job["name"]);
-      job_stat = process_results(job["conclusion"], job_stat);
+
+      if (job["conclusion"] != "success") {
+        if (job["conclusion"] == "skipped") {
+          job_stat["skips"] += 1;
+          job_stat["results"].push("Skip");
+        } else {
+          // failed or cancelled
+          job_stat["fails"] += 1;
+          job_stat["results"].push("Fail");
+        }
+      } else {
+        job_stat["results"].push("Pass");
+      }
+
+      job_stat["reruns"].push(job["reruns"]);
+      job_stat["rerun_results"].push(job["attempt_results"]);
+      // job_stat = process_results(job["conclusion"], job_stat);
 
       if(job["attempt_results"]){
         for(const result of job["attempt_results"]){
           job_stat = process_results(result, job_stat);
-          job_stat["run_nums"].push(run["run_number"]);
-          job_stat["reruns"] += 1;
         }
       }
     }
@@ -275,14 +283,23 @@ async function get_atttempt_results(runs_with_job_data){
                                                 step.name === "Complete job");
           // If there's a conclusion, add it to the job's attempt_results.
           if(completed){
-            job["attempt_results"].push(completed.conclusion);
+            if (completed.conclusion != "success") {
+              if (completed.conclusion == "skipped") {
+                job["attempt_results"].push("Skip");
+              } else {
+                // failed or cancelled
+                job["attempt_results"].push("Fail");
+              }
+            } else {
+              job["attempt_results"].push("Pass");
+            }
           } else {
-            // Never completed --> failure?
-            job["attempt_results"].push("failure");
+            // Never completed
+            job["attempt_results"].push("Fail");
           }
         } else {
-          // Not Ran --> cancelled?
-          job["attempt_results"].push("cancelled");
+          // Not Ran
+          job["attempt_results"].push("Skip");
         }
       }
       // Get json with next attempt URL
