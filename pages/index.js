@@ -205,7 +205,7 @@ export default function Home() {
                     <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
                     <sup
                       id={badgeId}
-                      style={{ fontSize: '0.7rem', verticalAlign: 'super', marginLeft: '0.3rem' }}
+                      className="text-xs font-bold align-super ml-1"
                     >
                       {reruns}
                     </sup>

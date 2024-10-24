@@ -56,7 +56,7 @@ async function fetch_pull_requests() {
     }
   
     const json = await response.json();
-    fetch_count++;
+    fetch_count += 1;
     // console.log(`fetch ${fetch_count}: ${prs_url}
     //     returned PRs cnt: ${Object.keys(json).length}`);
     return json;
@@ -78,7 +78,7 @@ async function fetch_main_branch() {
     }
 
     const json = await response.json();
-    fetch_count++;
+    fetch_count += 1;
     const contexts = json?.protection?.required_status_checks?.contexts;
     // console.log(`fetch ${fetch_count}: ${main_branch_url}
     //     required jobs cnt: ${contexts.length}`);
@@ -103,7 +103,7 @@ function get_check_data(pr) {
     }
 
     const json = await response.json();
-    fetch_count++;
+    fetch_count += 1;
     // console.log(`fetch ${fetch_count}: ${checks_url}
     //     returned check cnt / total cnt: ${json['check_runs'].length} / ${json['total_count']}`);
     return json;
@@ -150,11 +150,32 @@ function get_required_jobs(main_branch) {
   return main_branch["protection"]["required_status_checks"]["contexts"];
 }
 
+// maybe reformat json? less computing on click... more readable
+// fix urls for nightly... broken if reruns
+
+function process_results(result, job_stat){
+  if (result !== "success") {
+    if (result === "skipped") {
+      job_stat["skips"] += 1;
+      job_stat["results"].push("Skip");
+    } else {
+      // failed or cancelled
+      job_stat["fails"] += 1;
+      job_stat["results"].push("Fail");
+    }
+  } else {
+    job_stat["results"].push("Pass");
+  }
+  return job_stat;
+}
+
 
 // Calculate and return check stats across all runs
 function compute_check_stats(prs_with_check_data, required_jobs) {
   const check_stats = {};
   for (const pr of prs_with_check_data) {
+    const check_reruns = {};
+    const check_rerun_results = {};
     for (const check of pr["checks"]) {
         if (!(check["name"] in check_stats)) {
             check_stats[check["name"]] = {
@@ -164,31 +185,67 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
                 urls: [],     // list of PR URLs that this check is associated with
                 results: [],  // list of check statuses for the PRs in which the check was run
                 run_nums: [], // list of PR numbers that this check is associated with
-                reruns: 0,    // the total number of times the test was rerun
+                reruns: [],    // the total number of times the test was rerun
+                rerun_results: [], // an array of strings, e.g. 'Pass', 'Fail', for reruns
             };
         }
         if ((check["name"] in check_stats)) {
             const check_stat = check_stats[check["name"]];
-            check_stat["runs"] += 1;
             check_stat["urls"].push(pr["html_url"])
-            if (check_stat["run_nums"].includes(pr["number"])) {
-                check_stat["reruns"] += 1;
-            }
-            check_stat["run_nums"].push(pr["number"])
-            if (check["conclusion"] != "success") {
-            if (check["conclusion"] == "skipped") {
-                check_stat["skips"] += 1;
-                check_stat["results"].push("Skip");
-            } else {
-                // failed or cancelled
-                check_stat["fails"] += 1;
-                check_stat["results"].push("Fail");
-            }
-            } else {
-            check_stat["results"].push("Pass");
-            }
             check_stat["required"] = required_jobs.includes(check["name"]);
+
+            // If run number is already found, it's a rerun
+            if (check_stat["run_nums"].includes(pr["number"])) {
+              // Increment rerun count for the job. 
+              // check_stat["reruns"] += 1;
+              // console.log(check_stat);
+              // console.log("number: " +pr["number"]);
+
+              // console.log("before results: "+check_rerun_results[check["name"]])
+
+              check_reruns[check["name"]] += 1;
+              // console.log("conclusion: "+check["conclusion"]);
+              // console.log("init results: "+check_rerun_results[check["name"]])
+
+              if (check["conclusion"] != "success") {
+                if (check["conclusion"] == "skipped") {
+                    check_stat["skips"] += 1;
+                    check_rerun_results[check["name"]].push("Skip");
+                } else {
+                    // failed or cancelled
+                    check_stat["fails"] += 1;
+                    check_rerun_results[check["name"]].push("Fail");
+                }
+              } else {
+                check_rerun_results[check["name"]].push("Pass");
+              }
+              // console.log("after results: "+check_rerun_results[check["name"]])
+              // console.log();
+            }else{
+              if(!check_rerun_results[check["name"]]){
+                check_reruns[check["name"]] = 0;
+                check_rerun_results[check["name"]] = [];
+              }
+              check_stat["run_nums"].push(pr["number"]);
+              check_stat["runs"] += 1;
+              if (check["conclusion"] != "success") {
+                if (check["conclusion"] == "skipped") {
+                    check_stat["skips"] += 1;
+                    check_stat["results"].push("Skip");
+                } else {
+                    // failed or cancelled
+                    check_stat["fails"] += 1;
+                    check_stat["results"].push("Fail");
+                }
+              } else {
+                check_stat["results"].push("Pass");
+              }
+            }
         }
+    }
+    for (const check in check_reruns) {
+      check_stats[check]["reruns"].push(check_reruns[check]);
+      check_stats[check]["rerun_results"].push(check_rerun_results[check]);
     }
   }
   return check_stats;
