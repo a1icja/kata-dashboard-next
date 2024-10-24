@@ -45,6 +45,7 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Get bar chart statistics. 
   const getTotalStats = (data) => {
     return data.reduce((acc, job) => {
       acc.runs += job.runs;
@@ -53,7 +54,6 @@ export default function Home() {
       return acc;
     }, { runs: 0, fails: 0, skips: 0 });
   };
-
   const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
 
   const applyFilter = (filteredJobs, parts) => {
@@ -96,10 +96,10 @@ export default function Home() {
     setLoading(false);
   }, [jobs, checks, requiredFilter, display]);
 
+  // Close all rows on view switch. 
   useEffect(() => {
     setExpandedRows([])
   }, [display]); 
-
 
   const getWeatherIndex = (stat) => {
     const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns.reduce((total, r) => total + r, 0));
@@ -121,7 +121,7 @@ export default function Home() {
   };
 
   const nameTemplate = (rowData) => (
-    <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
+    <span onClick={() => toggleRow(rowData)} className="cursor-pointer">
       {rowData.name}
     </span>
   );
@@ -136,25 +136,21 @@ export default function Home() {
     const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
   
     if (!job) return <div className="p-3 bg-gray-100">No data available for this job.</div>;
+  
+    const getRunStatusIcon = (runs) => {
+      if (Array.isArray(runs)) {
+        const allPass = runs.every(run => run === "Pass");
+        const allFail = runs.every(run => run === "Fail");
 
-    // Aggregate runs by run_num
-    // const aggregatedRuns = job.run_nums.reduce((acc, run_num, idx) => {
-    //   const run = {
-    //     run_num,
-    //     result: job.results[idx],
-    //     url: job.urls[idx],
-    //   };
-  
-    //   if (!acc[run_num]) {
-    //     acc[run_num] = { runs: [run], count: 1 };
-    //   } else {
-    //     acc[run_num].runs.push(run);
-    //     acc[run_num].count += 1;
-    //   }
-    //   return acc;
-    // }, {});
-  
-    // const runEntries = Object.entries(aggregatedRuns);
+        if (allPass) {return "✅";}
+        if (allFail) {return "❌";}
+      } else if (runs === "Pass") {
+        return "✅";
+      } else if (runs === "Fail") {
+        return "❌";
+      }
+      return "⚠️";  // return a warning if a mix of results
+    };
 
     const runEntries = job.run_nums.map((run_num, idx) => ({
       run_num,
@@ -163,27 +159,10 @@ export default function Home() {
       rerun_result: job.rerun_results[idx],
       url: job.urls[idx],
     }));    
-  
-    const getRunStatusIcon = (runs) => {
-      if (Array.isArray(runs)) {
-        const allPass = runs.every(run => run === "Pass");
-        const allFail = runs.every(run => run === "Fail");
-    
-        if (allPass) return "✅";
-        if (allFail) return "❌";
-      } else if (runs === "Pass") {
-        return "✅";
-      } else if (runs === "Fail") {
-        return "❌";
-      }
-    
-      return "⚠️";  // return this if mix of statuses
-    };
 
     return (
-      <div key={`${job.name}-runs`} className="p-3 bg-gray-100" style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-        {/* {runEntries.map(([run_num, { runs, count }]) => { */}
+      <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
+        <div className="flex flex-wrap gap-4">
           {runEntries.map(({run_num, result, reruns, rerun_result, url }, idx) => {
             const runStatuses = rerun_result
               ? rerun_result.map((result) => `${result === 'Pass' ? '✅ Success' : result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
@@ -193,25 +172,23 @@ export default function Home() {
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
             return (
-              <div key={run_num} style={{ display: "flex" }}>
-                <div key={idx} style={{ display: "flex", alignItems: "center" }}>
+              <div key={run_num} className="flex">
+                <div key={idx} className="flex items-center">
                   <a href={url} target="_blank">
                     {reruns > 1 
                       ? getRunStatusIcon(rerun_result) 
                       : getRunStatusIcon(result)} {run_num}
                   </a>
                 </div>
-                  {reruns > 1 &&(
-                    <span className="p-overlay-badge" style={{ fontSize: '1rem' }}>
-                    <sup
-                      id={badgeId}
-                      className="text-xs font-bold align-super ml-1"
-                    >
-                      {reruns}
+                {reruns > 1 &&(
+                  <span className="p-overlay-badge">
+                    <sup  id={badgeId}
+                          className="text-xs font-bold align-super ml-1">
+                    {reruns}
                     </sup>
                     <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" tooltipOptions={{ autoHide: 'false' }}/>
                   </span>
-                  )}
+                )}
               </div>
             );
           })}
@@ -261,7 +238,7 @@ export default function Home() {
       loading={loading}
       emptyMessage="No results found."
     >
-      <Column expander style={{ width: "5rem" }} />
+      <Column expander/>
       <Column
         field="name"
         header="Name"
@@ -294,7 +271,7 @@ export default function Home() {
   return (
     <>
       <title>Kata CI Dashboard</title>
-      <div className="text-center">
+      <div className="text-center text-xs md:text-base">
         <h1 className={"text-4xl mt-4 mb-6 underline text-inherit hover:text-blue-500"}>
           <a
             href={display === 'nightly' 
@@ -307,8 +284,12 @@ export default function Home() {
           </a>
         </h1>
 
-        <div className="flex justify-between items-center mt-2 ml-4">
+        
+        <div className="xl:absolute l:flex mx-auto top-5 right-5 w-96 h-24">
+              <BarChart data={totalStats} />
+        </div>
 
+        <div className="flex justify-between items-center mt-2 ml-4">
           <div className="tabs flex space-x-2">
             <button className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}
@@ -320,10 +301,6 @@ export default function Home() {
             >
               PR Checks
             </button>
-          </div>
-
-          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '450px', height: '100px' }}>
-            <BarChart data={totalStats} />
           </div>
 
           <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
