@@ -56,6 +56,13 @@ export default function Home() {
   };
   const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
 
+  const clearSearch = () => {
+    const urlParts = window.location.href.split("?");
+    if(urlParts[1] !== undefined){
+      window.location.href = urlParts[0];
+    }
+  }
+
   const matchAll = (filteredJobs, parts) => {
     for (let i = 2; i < parts.length; i++) {
       const [matchMode, value] = parts[i].split("=")[1].split("&");
@@ -97,7 +104,6 @@ export default function Home() {
     if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
 
     const urlParts = window.location.href.split("?");
-    console.log("1: " + urlParts[1])
     
     if(urlParts[2] !== undefined){
       if (urlParts[1] === "and/"){
@@ -334,6 +340,11 @@ export default function Home() {
 
           <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground font-normal text-text-color antialiased select-text"}>
+            <button className={buttonClass()} 
+              onClick={() => clearSearch()}>
+              Clear Search
+            </button>
+
             <button className={buttonClass(keepSearch)} 
               onClick={() => setKeepSearch(!keepSearch)}>
               Keep URL Search Terms
