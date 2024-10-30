@@ -150,9 +150,6 @@ function get_required_jobs(main_branch) {
   return main_branch["protection"]["required_status_checks"]["contexts"];
 }
 
-// maybe reformat json? less computing on click... more readable
-// fix urls for nightly... broken if reruns
-
 function process_results(result, job_stat){
   if (result !== "success") {
     if (result === "skipped") {
@@ -197,16 +194,7 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
             // If run number is already found, it's a rerun
             if (check_stat["run_nums"].includes(pr["number"])) {
               // Increment rerun count for the job. 
-              // check_stat["reruns"] += 1;
-              // console.log(check_stat);
-              // console.log("number: " +pr["number"]);
-
-              // console.log("before results: "+check_rerun_results[check["name"]])
-
               check_reruns[check["name"]] += 1;
-              // console.log("conclusion: "+check["conclusion"]);
-              // console.log("init results: "+check_rerun_results[check["name"]])
-
               if (check["conclusion"] != "success") {
                 if (check["conclusion"] == "skipped") {
                     check_stat["skips"] += 1;
@@ -219,8 +207,6 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
               } else {
                 check_rerun_results[check["name"]].push("Pass");
               }
-              // console.log("after results: "+check_rerun_results[check["name"]])
-              // console.log();
             }else{
               if(!check_rerun_results[check["name"]]){
                 check_reruns[check["name"]] = 0;

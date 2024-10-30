@@ -18,7 +18,7 @@ export default function Home() {
   const [rows,           setRows]           = useState([]);
   const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [keepSearch,     setKeepSearch]     = useState(false);
+  const [keepSearch,     setKeepSearch]     = useState(true);
   const [display,        setDisplay]        = useState("nightly");
 
   const icons = [
@@ -56,7 +56,7 @@ export default function Home() {
   };
   const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
 
-  const applyFilter = (filteredJobs, parts) => {
+  const matchAll = (filteredJobs, parts) => {
     for (let i = 2; i < parts.length; i++) {
       const [matchMode, value] = parts[i].split("=")[1].split("&");
       const decoded = decodeURIComponent(value).replace("/", "").trim().toLowerCase();
@@ -73,14 +73,43 @@ export default function Home() {
     return filteredJobs;
   };
 
+  const matchAny = (name, parts) => {
+    const matchFunctions = {
+      contains: (n, v) => n.includes(v),
+      notContains: (n, v) => !n.includes(v),
+      equals: (n, v) => n === v,
+      notEquals: (n, v) => n !== v,
+      startsWith: (n, v) => n.startsWith(v),
+      endsWith: (n, v) => n.endsWith(v),
+    };
+  
+    return parts.slice(2).some(part => {
+      const [matchMode, value] = part.split('=')[1].split('&');
+      const decoded = decodeURIComponent(value).replace('/', '').trim().toLowerCase();
+      return matchFunctions[matchMode]?.(name, decoded);
+    });
+  };
+  
+
   useEffect(() => {
     setLoading(true);
     let filteredJobs = display === "nightly" ? jobs : checks;
     if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
 
     const urlParts = window.location.href.split("?");
-    if (urlParts[1]) filteredJobs = applyFilter(filteredJobs, urlParts);
-
+    console.log("1: " + urlParts[1])
+    
+    if(urlParts[2] !== undefined){
+      if (urlParts[1] === "and/"){
+        filteredJobs = matchAll(filteredJobs, urlParts);
+      } else {
+        filteredJobs =  filteredJobs.filter((job) =>
+          matchAny(job.name.toLowerCase(), urlParts)
+        );
+      }
+    }
+   
+    
     setRows(
       filteredJobs.map((job, idx) => ({
         name    : job.name,
