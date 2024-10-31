@@ -78,43 +78,31 @@ export default function Home() {
     ${active ? "border-blue-500 bg-gray-300" 
       : "border-gray-300 bg-white hover:bg-gray-100"}`;
 
-      
-  const matchAll = (filteredJobs, parts) => {
-    for (let i = 2; i < parts.length; i++) {
-      const [matchMode, value] = parts[i].split("=")[1].split("&");
-      const decoded = decodeURIComponent(value)
-        .replace("/", "").trim().toLowerCase();
-      const filterMap = {
-        contains   : (name) => name.includes(decoded),
-        notContains: (name) => !name.includes(decoded),
-        equals     : (name) => name === decoded,
-        notEquals  : (name) => name !== decoded,
-        startsWith : (name) => name.startsWith(decoded),
-        endsWith   : (name) => name.endsWith(decoded),
-      };
-      filteredJobs = filteredJobs.filter((job) => 
-        filterMap[matchMode](job.name.toLowerCase()));
-    }
-    return filteredJobs;
-  };
 
-  const matchAny = (name, parts) => {
-    const filterMap = {
-      contains   : (name, decoded) => name.includes(decoded),
-      notContains: (name, decoded) => !name.includes(decoded),
-      equals     : (name, decoded) => name === decoded,
-      notEquals  : (name, decoded) => name !== decoded,
-      startsWith : (name, decoded) => name.startsWith(decoded),
-      endsWith   : (name, decoded) => name.endsWith(decoded),
-    };
-    return parts.slice(2).some(part => {
-      const [matchMode, value] = part.split('=')[1].split('&');
-      const decoded = decodeURIComponent(value)
-        .replace('/', '').trim().toLowerCase();
-      return filterMap[matchMode]?.(name, decoded);
+  const matchAll = (filteredJobs, urlParams) => {
+    const values = urlParams.getAll("value");
+    return filteredJobs.filter((job) => {
+        const jobName = job.name.toLowerCase();
+        return values.every((val) => {
+            const decodedValue = decodeURIComponent(val)
+                .replace("/", "").trim().toLowerCase();
+            return jobName.includes(decodedValue); // Directly check contains
+        });
     });
   };
   
+  const matchAny = (filteredJobs, urlParams) => {
+    const values = urlParams.getAll("value");
+    return filteredJobs.filter((job) => {
+        const jobName = job.name.toLowerCase();
+        return values.some((val) => {
+            const decodedValue = decodeURIComponent(val)
+                .replace("/", "").trim().toLowerCase();
+            return jobName.includes(decodedValue); // Directly check contains
+        });
+    });
+  };
+    
   useEffect(() => {
     setLoading(true);
     // Filter based on required tag.
@@ -123,15 +111,13 @@ export default function Home() {
       filteredJobs = filteredJobs.filter((job) => job.required);
     }
     //Filter based on the URL. 
-    const urlParts = window.location.href.split("?");
-    if(urlParts[2] !== undefined){
-      if (urlParts[1] === "and/"){
-        filteredJobs = matchAll(filteredJobs, urlParts);
-      } else {
-        filteredJobs =  filteredJobs.filter((job) =>
-          matchAny(job.name.toLowerCase(), urlParts));
-      }
-    } 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredJobs = matchAll(filteredJobs, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredJobs = matchAny(filteredJobs, urlParams);
+    }
+    //Set the rows for the table.
     setRows(
       filteredJobs.map((job) => ({
         name          : job.name,
@@ -173,9 +159,9 @@ export default function Home() {
   );
 
   const nameTemplate = (rowData) => (
-    <span onClick={() => toggleRow(rowData)} className="cursor-pointer">
-      {rowData.name}
-    </span>
+    <div className="cursor-pointer" onClick={() => toggleRow(rowData)} style={{ display: 'inline-block' }}>
+    <span style={{ userSelect: 'text' }}>{rowData.name}</span>
+  </div>
   );
 
 
@@ -186,6 +172,7 @@ export default function Home() {
         : [...prev, rowData]
     );
   };
+
   const overlayRefs = useRef([]);
 
   const rowExpansionTemplate = (data) => {
@@ -301,26 +288,27 @@ export default function Home() {
   };
 
   // Apply search terms to the URL and reload the page. 
-  const handleFilterApply = (e) => {
-    if (e.constraints.constraints[0].value) {
-      let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
-
+  const handleForm = (e) => {
+    // Prevent the default behavior so that we can keep search terms.
+    e.preventDefault();
+    const matchMode = e.target.matchMode.value;
+    const value = e.target.value.value.trim(); 
+    if (value) {  
+      // Append the new matchMode regardless of if search terms were kept.
+      const path = new URLSearchParams();
+      path.append("matchMode", matchMode);
       if (keepSearch) {
-        const url = window.location.href;
-        const parts = url.split('?');
-        if (parts.length > 2) {
-          for (let i = 2; i < parts.length; i++) {
-            path += `/?${parts[i].replace('/', '').trim()}`;
-          }
-        }
+        // If keepSearch is true, add existing parameters in the URL.
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.getAll("value").forEach((val) => {
+          const decodedValue = val
+            .replace("/", "").trim().toLowerCase();
+          path.append("value", decodedValue); 
+        });
       }
-
-      e.constraints.constraints.forEach((c) => {
-        path += `/?search=${encodeURIComponent(c.matchMode)}&` +
-                          `${encodeURIComponent(c.value.trim())}`;
-      });
-
-      window.location.href = `${basePath}${path}`;
+      //Add the search term from the form and redirect. 
+      path.append("value", encodeURIComponent(value)); 
+      window.location.assign(`${basePath}/?${path.toString()}`);
     }
   };
 
@@ -340,18 +328,13 @@ export default function Home() {
         header="Name"
         body={nameTemplate}
         className="select-all"
-        filter
-        onFilterApplyClick={(e) => handleFilterApply(e)}
-        maxConstraints={4}
-        filterHeader="Filter by Name"
-        filterPlaceholder="Search..."
         sortable
       />
       <Column field = "required"      header = "Required" sortable/>
       <Column 
         field = "runs"   
         header = "Runs"
-        className="whitespace-nowrap px-2 select-all"
+        className="whitespace-nowrap px-2"
         // body={(data) => (
         //   <span className="whitespace-nowrap">
         //     <span className="font-bold">
@@ -397,42 +380,63 @@ export default function Home() {
               <BarChart data={totalStats} />
         </div>
 
-        <div className="flex justify-between items-center mt-2 ml-4">
-          <div className="tabs flex space-x-2">
+        <div className="flex flex-wrap mt-2 p-4 text-base">
+          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
-                Nightly Jobs
+              Nightly Jobs
             </button>
             <button 
               className={tabClass(display === "prchecks")}
               onClick={() => setDisplay("prchecks")}>
-                PR Checks
+              PR Checks
             </button>
           </div>
 
-          <div className={"space-x-2 p-4 bg-surface-ground"}>
+          <div className="space-x-2 mx-auto lg:mr-0">
             <button 
               className={buttonClass()} 
               onClick={() => clearSearch()}>
-                Clear Search
+              Clear Search
             </button>
             <button 
               className={buttonClass(keepSearch)} 
               onClick={() => setKeepSearch(!keepSearch)}>
-                Keep URL Search Terms
+              Keep URL Search Terms
             </button>
             <button 
               className={buttonClass(requiredFilter)} 
               onClick={() => setRequiredFilter(!requiredFilter)}>
-                Required Jobs Only
+              Required Jobs Only
             </button>
           </div>
         </div>
 
+
+        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
+          <div className="flex min-[960px]:justify-end justify-center w-full"> 
+            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
+              <div>
+                <label className="block text-white">Match Mode:</label>
+                <select name="matchMode" className="px-1 h-fit rounded-lg">
+                  <option value="or">Match Any</option>
+                  <option value="and">Match All</option>
+                </select>
+              </div>
+              <div className="mx-2">
+                <label className="block text-white">Search Text:</label>
+                <input type="text" name="value" required></input>
+              </div>
+              <button type="submit" className="bg-blue-500 text-white px-4 rounded-3xl">Submit</button>
+            </form>
+          </div>
+        </div>
+        
+        <div className="mt-4 text-lg text-center">Total Rows: {rows.length}</div>
+
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
-          <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
           <div>{renderTable()}</div>
         </main>
       </div>
