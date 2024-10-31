@@ -132,6 +132,7 @@ function get_job_data(run) {
     run_number: run["run_number"],
     created_at: run["created_at"],
     previous_attempt_url: run["previous_attempt_url"],
+    html_url: run["html_url"],
     conclusion: null,
     jobs: [],
   };
@@ -151,7 +152,7 @@ function get_required_jobs(main_branch) {
   return main_branch["protection"]["required_status_checks"]["contexts"];
 }
 
-function process_results(result, job_stat){
+function count_stats(result, job_stat){
   if (result === "Skip") {
     job_stat["skips"] += 1;
   } else if (result === "Fail"){
@@ -175,13 +176,25 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
           run_nums: [], // ordered list of github-assigned run numbers
           reruns: [],    // the total number of times the test was rerun
           rerun_results: [], // an array of strings, e.g. 'Pass', 'Fail', for reruns
+          rerun_urls: [],     // an array of urls for each run rerun attempt
         };
       }
       var job_stat = job_stats[job["name"]];
       job_stat["runs"] += 1;
       job_stat["run_nums"].push(run["run_number"]);
-      job_stat["urls"].push(job["html_url"]);
       job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["reruns"].push(job["reruns"]);
+      job_stat["rerun_results"].push(job["attempt_results"]);
+      job_stat["urls"].push(run["html_url"]);
+
+      const jobURLs = [job["html_url"]];
+      if(job["attempt_results"]){
+        jobURLs.push(...job["rerun_urls"]);
+        job["attempt_results"].forEach(result => {
+          job_stat = count_stats(result, job_stat);
+        });
+      }
+      job_stat["rerun_urls"].push(jobURLs);
 
       if (job["conclusion"] != "success") {
         if (job["conclusion"] == "skipped") {
@@ -196,15 +209,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
         job_stat["results"].push("Pass");
       }
 
-      job_stat["reruns"].push(job["reruns"]);
-      job_stat["rerun_results"].push(job["attempt_results"]);
-      // job_stat = process_results(job["conclusion"], job_stat);
-
-      if(job["attempt_results"]){
-        for(const result of job["attempt_results"]){
-          job_stat = process_results(result, job_stat);
-        }
-      }
+      
     }
   }
   return job_stats;
@@ -270,16 +275,27 @@ async function get_atttempt_results(runs_with_job_data){
       // For each job in the run, append the result.
       for (const job of run["jobs"]) {
         // Find the job in the json that matches the current job name.
-        const matches = json1.jobs.find((j) => j.name === job["name"]);
+        const match = json1.jobs.find((j) => j.name === job["name"]);
+
+        // console.log(json1.job.html_url)
 
         // Initialize job["attempt_results"] if not initialized before.
-        if (!job["attempt_results"]) {
-          job["attempt_results"] = [];
-        }
+        job["attempt_results"] ??= [];
+        job["rerun_urls"] ??= [];
 
-        if (matches) {
+        // console.log("before: "+job["rerun_urls"])
+
+
+        // job["rerun_urls"].push(prev_url)
+
+        // console.log("after: "+job["rerun_urls"])
+        // console.log();
+
+        if (match) {
+          job["rerun_urls"].push(match.html_url);
+
           // Find the last step to see the final conclusion for the job.
-          const completed = matches.steps.find((step) => 
+          const completed = match.steps.find((step) => 
                                                 step.name === "Complete job");
           // If there's a conclusion, add it to the job's attempt_results.
           if(completed){
@@ -299,6 +315,7 @@ async function get_atttempt_results(runs_with_job_data){
           }
         } else {
           // Not Ran
+          job["rerun_urls"].push(null);
           job["attempt_results"].push("Skip");
         }
       }
