@@ -198,24 +198,30 @@ export default function Home() {
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         <div className="flex flex-wrap gap-4">
-          {runEntries.map(({run_num, result, reruns, rerun_result, url }, idx) => {
-            const runStatuses = rerun_result
-              ? rerun_result.map((result) => `${result === 'Pass' ? '✅ Success' : result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`)
-              .join('\n')
-              : '';
-            
+          {runEntries.map(({run_num, result, url, reruns, rerun_result, rerun_urls }, idx) => {
+            //var runStatuses = `${result === 'Pass' ? '✅ Success' : result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`;
+
+            const allResults = rerun_result ?  [result, ...rerun_result] : [result];
+            const runStatuses = allResults.map((result, idx) => 
+              `${allResults.length - idx}. ${result === 'Pass' 
+                ? '✅ Success' 
+                : result === 'Fail' 
+                  ? '❌ Fail' 
+                  : '⚠️ Warning'}`).join('\n');
+
+            // console.log("runStatuses: " +runStatuses);
+
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
             return (
               <div key={run_num} className="flex">
                 <div key={idx} className="flex items-center">
                   <a href={url} target="_blank">
-                    {reruns > 1 
-                      ? getRunStatusIcon(rerun_result) 
-                      : getRunStatusIcon(result)} {run_num}
+                    {getRunStatusIcon(allResults)} {run_num}
+                      {/* {result === 'Pass' ? '✅' : result === 'Fail' ? '❌' : '⚠️'} {run_num} */}
                   </a>
                 </div>
-                {reruns > 1 &&(
+                {reruns > 0 &&(
                   <span className="p-overlay-badge">
                     <sup  id={badgeId}
                           className="text-xs font-bold align-super ml-1">
