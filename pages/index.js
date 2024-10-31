@@ -50,13 +50,17 @@ export default function Home() {
   // Get bar chart statistics. 
   const getTotalStats = (data) => {
     return data.reduce((acc, job) => {
-      acc.runs += job.runs;
+      acc.runs  += job.runs;
       acc.fails += job.fails;
       acc.skips += job.skips;
       return acc;
     }, { runs: 0, fails: 0, skips: 0 });
   };
-  const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
+
+  const totalStats = display === "nightly" 
+    ? getTotalStats(jobs) 
+    : getTotalStats(checks);
+
 
   // Clear search parameters if they exist.
   const clearSearch = () => {
@@ -66,10 +70,20 @@ export default function Home() {
     }
   }
 
+  const buttonClass = (active) => `tab px-4 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+  const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
+    ${active ? "border-blue-500 bg-gray-300" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+      
   const matchAll = (filteredJobs, parts) => {
     for (let i = 2; i < parts.length; i++) {
       const [matchMode, value] = parts[i].split("=")[1].split("&");
-      const decoded = decodeURIComponent(value).replace("/", "").trim().toLowerCase();
+      const decoded = decodeURIComponent(value)
+        .replace("/", "").trim().toLowerCase();
       const filterMap = {
         contains   : (name) => name.includes(decoded),
         notContains: (name) => !name.includes(decoded),
@@ -78,32 +92,37 @@ export default function Home() {
         startsWith : (name) => name.startsWith(decoded),
         endsWith   : (name) => name.endsWith(decoded),
       };
-      filteredJobs = filteredJobs.filter((job) => filterMap[matchMode](job.name.toLowerCase()));
+      filteredJobs = filteredJobs.filter((job) => 
+        filterMap[matchMode](job.name.toLowerCase()));
     }
     return filteredJobs;
   };
 
   const matchAny = (name, parts) => {
     const filterMap = {
-      contains   : (name) => name.includes(decoded),
-      notContains: (name) => !name.includes(decoded),
-      equals     : (name) => name === decoded,
-      notEquals  : (name) => name !== decoded,
-      startsWith : (name) => name.startsWith(decoded),
-      endsWith   : (name) => name.endsWith(decoded),
+      contains   : (name, decoded) => name.includes(decoded),
+      notContains: (name, decoded) => !name.includes(decoded),
+      equals     : (name, decoded) => name === decoded,
+      notEquals  : (name, decoded) => name !== decoded,
+      startsWith : (name, decoded) => name.startsWith(decoded),
+      endsWith   : (name, decoded) => name.endsWith(decoded),
     };
     return parts.slice(2).some(part => {
       const [matchMode, value] = part.split('=')[1].split('&');
-      const decoded = decodeURIComponent(value).replace('/', '').trim().toLowerCase();
+      const decoded = decodeURIComponent(value)
+        .replace('/', '').trim().toLowerCase();
       return filterMap[matchMode]?.(name, decoded);
     });
   };
   
   useEffect(() => {
     setLoading(true);
+    // Filter based on required tag.
     let filteredJobs = display === "nightly" ? jobs : checks;
-    if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
-
+    if (requiredFilter){
+      filteredJobs = filteredJobs.filter((job) => job.required);
+    }
+    //Filter based on the URL. 
     const urlParts = window.location.href.split("?");
     if(urlParts[2] !== undefined){
       if (urlParts[1] === "and/"){
@@ -112,17 +131,16 @@ export default function Home() {
         filteredJobs =  filteredJobs.filter((job) =>
           matchAny(job.name.toLowerCase(), urlParts));
       }
-    }
-   
+    } 
     setRows(
       filteredJobs.map((job) => ({
-        name    : job.name,
-        runs    : job.runs,
-        fails   : job.fails,
-        skips   : job.skips,
-        required: job.required,
-        weather : getWeatherIndex(job),
-        reruns  : job.reruns,
+        name          : job.name,
+        runs          : job.runs,
+        fails         : job.fails,
+        skips         : job.skips,
+        required      : job.required,
+        weather       : getWeatherIndex(job),
+        reruns        : job.reruns,
         total_reruns  : job.reruns.reduce((total, r) => total + r, 0),
       }))
     );
@@ -137,7 +155,9 @@ export default function Home() {
 
 
   const getWeatherIndex = (stat) => {
-    const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns.reduce((total, r) => total + r, 0));
+    const failRate = (stat.fails + stat.skips) / 
+                     (stat.runs + stat.reruns.reduce((total, r) =>
+                      total + r, 0));
     let idx = Math.floor((failRate * 10) / 2);
     if (idx === icons.length) idx -= 1;
     return isNaN(idx) ? 4 : idx;
@@ -145,7 +165,10 @@ export default function Home() {
 
   const weatherTemplate = (data) => (
     <div>
-      <Image src={`${basePath}/${icons[getWeatherIndex(data)]}`} alt="weather" width={32} height={32} />
+      <Image
+        src={`${basePath}/${icons[getWeatherIndex(data)]}`}
+        alt="weather" width={32}
+        height={32}/>
     </div>
   );
 
@@ -155,26 +178,26 @@ export default function Home() {
     </span>
   );
 
-  const buttonClass = (active) => `tab px-4 py-2 border-2 
-    ${active ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300 bg-white"}`;
-
-  const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
-    ${active ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"}`;
-
 
   const toggleRow = (rowData) => {
     setExpandedRows((prev) =>
-      prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
+      prev.includes(rowData) 
+        ? prev.filter((r) => r !== rowData) 
+        : [...prev, rowData]
     );
   };
-
   const overlayRefs = useRef([]);
 
   const rowExpansionTemplate = (data) => {
-    const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
+    const job = (display === "nightly" 
+      ? jobs 
+      : checks).find((job) => job.name === data.name);
   
-    if (!job) return <div className="p-3 bg-gray-100">No data available for this job.</div>;
-  
+    if (!job) return (
+        <div className="p-3 bg-gray-100">
+          No data available for this job.
+        </div>); 
+
     const getRunStatusIcon = (runs) => {
       if (Array.isArray(runs)) {
         const allPass = runs.every(run => run === "Pass");
@@ -202,8 +225,18 @@ export default function Home() {
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         <div className="flex flex-wrap gap-4">
-          {runEntries.map(({run_num, result, url, reruns, rerun_result, attempt_urls }, idx) => {
-            const allResults = rerun_result ?  [result, ...rerun_result] : [result];
+          {runEntries.map(({
+            run_num, 
+            result, 
+            url, 
+            reruns, 
+            rerun_result, 
+            attempt_urls 
+          }, idx) => {
+            const allResults = rerun_result 
+              ?  [result, ...rerun_result] 
+              : [result];
+
             const runStatuses = allResults.map((result, idx) => 
               `${allResults.length - idx}. ${result === 'Pass' 
                 ? '✅ Success' 
@@ -211,30 +244,38 @@ export default function Home() {
                   ? '❌ Fail' 
                   : '⚠️ Warning'}`);
 
-            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
+            // IDs can't have a '/'...
+            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, '');
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
-            overlayRefs.current[idx] = overlayRefs.current[idx] || React.createRef();
+            overlayRefs.current[badgeId] = overlayRefs.current[badgeId] 
+              || React.createRef();
 
             return (
               <div key={run_num} className="flex">
                 <div key={idx} className="flex items-center">
                   <a href={url} target="_blank" rel="noopener noreferrer">
+                  {/* <a href={attempt_urls[0]} target="_blank" rel="noopener noreferrer"> */}
                     {getRunStatusIcon(allResults)} {run_num}
                   </a>
                 </div>
                 {reruns > 0 &&(
                   <span className="p-overlay-badge">
-                    <sup  id={badgeId}
-                          className="text-xs font-bold align-super ml-1"
-                          onMouseEnter={(e) => overlayRefs.current[idx].current.toggle(e)}>
-                    {reruns}
+                    <sup  className="text-xs font-bold align-super ml-1"
+                          onMouseEnter={(e) => 
+                            overlayRefs.current[badgeId].current.toggle(e)}>
+                      {reruns}
                     </sup>
-                    <OverlayPanel ref={overlayRefs.current[idx]} dismissable>
+                    <OverlayPanel ref={overlayRefs.current[badgeId]} dismissable
+                    onMouseLeave={(e) => 
+                      overlayRefs.current[badgeId].current.toggle(e)}>
                     <ul className="bg-white border rounded shadow-lg p-2">
                       {runStatuses.map((status, index) => (
-                        <li key={index} className="py-1 px-2 hover:bg-gray-200">
-                          <a href={attempt_urls[index]} target="_blank" rel="noopener noreferrer">
-                            {status}
+                        <li className="p-2 hover:bg-gray-200">
+                          <a 
+                            href={attempt_urls[index]} 
+                            target="_blank" 
+                            rel="noopener noreferrer">
+                              {status}
                           </a>
                         </li>
                       ))}
@@ -275,7 +316,8 @@ export default function Home() {
       }
 
       e.constraints.constraints.forEach((c) => {
-        path += `/?search=${encodeURIComponent(c.matchMode)}&${encodeURIComponent(c.value.trim())}`;
+        path += `/?search=${encodeURIComponent(c.matchMode)}&` +
+                          `${encodeURIComponent(c.value.trim())}`;
       });
 
       window.location.href = `${basePath}${path}`;
@@ -297,28 +339,38 @@ export default function Home() {
         field="name"
         header="Name"
         body={nameTemplate}
+        className="select-all"
         filter
-        sortable
         onFilterApplyClick={(e) => handleFilterApply(e)}
         maxConstraints={4}
         filterHeader="Filter by Name"
         filterPlaceholder="Search..."
+        sortable
       />
-      <Column field = {"required"} header = "Required" sortable />
-      <Column field = {"runs"}   
-              header = "Runs"
-              className="whitespace-nowrap px-2"
-              // body={(data) => (
-              //   <span className="whitespace-nowrap">
-              //     <span className="font-bold">{data.runs + data.total_reruns}</span> 
-              //     {data.total_reruns > 0 ? ` (${data.total_reruns} reruns)` : ''}
-              //   </span>
-              // )}            
-              sortable />
-      <Column field = {"total_reruns"}  header = "Reruns"    sortable />
-      <Column field = {"fails"}  header = "Fails"    sortable />
-      <Column field = {"skips"}  header = "Skips"    sortable />
-      <Column field = "weather"  header = "Weather"  body = {weatherTemplate} sortable />
+      <Column field = {"required"}      header = "Required" sortable/>
+      <Column 
+        field = {"runs"}   
+        header = "Runs"
+        className="whitespace-nowrap px-2 select-all"
+        // body={(data) => (
+        //   <span className="whitespace-nowrap">
+        //     <span className="font-bold">
+        //         {data.runs + data.total_reruns}
+        //       </span> 
+        //     {data.total_reruns > 0 
+        //       ? ` (${data.total_reruns} reruns)` 
+        //       : ''}
+        //   </span>
+        // )}            
+        sortable />
+      <Column field = {"total_reruns"}  header = "Reruns"  sortable/>
+      <Column field = {"fails"}         header = "Fails"   sortable/>
+      <Column field = {"skips"}         header = "Skips"   sortable/>
+      <Column 
+        field = "weather"  
+        header = "Weather"  
+        body = {weatherTemplate} 
+        sortable />
     </DataTable>
   );
 
@@ -326,11 +378,14 @@ export default function Home() {
     <>
       <title>Kata CI Dashboard</title>
       <div className="text-center text-xs md:text-base">
-        <h1 className={"text-4xl mt-4 mb-6 underline text-inherit hover:text-blue-500"}>
+        <h1 className={"text-4xl mt-4 mb-6 underline text-inherit \
+                        hover:text-blue-500"}>
           <a
             href={display === 'nightly' 
-              ? "https://github.com/kata-containers/kata-containers/actions/workflows/ci-nightly.yaml"
-              : "https://github.com/kata-containers/kata-containers/actions/workflows/ci-on-push.yaml"}
+              ? "https://github.com/kata-containers/kata-containers/" +
+                "actions/workflows/ci-nightly.yaml"
+              : "https://github.com/kata-containers/kata-containers/" +
+                "actions/workflows/ci-on-push.yaml"}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -338,49 +393,47 @@ export default function Home() {
           </a>
         </h1>
 
-        
         <div className="xl:absolute l:flex mx-auto top-5 right-5 w-96 h-24">
               <BarChart data={totalStats} />
         </div>
 
         <div className="flex justify-between items-center mt-2 ml-4">
           <div className="tabs flex space-x-2">
-            <button className={tabClass(display === "nightly")}
-              onClick={() => setDisplay("nightly")}
-            >
-              Nightly Jobs
+            <button 
+              className={tabClass(display === "nightly")}
+              onClick={() => setDisplay("nightly")}>
+                Nightly Jobs
             </button>
-            <button className={tabClass(display === "prchecks")}
-              onClick={() => setDisplay("prchecks")}
-            >
-              PR Checks
+            <button 
+              className={tabClass(display === "prchecks")}
+              onClick={() => setDisplay("prchecks")}>
+                PR Checks
             </button>
           </div>
 
-          <div className={"m-0 h-full space-x-2 p-4 overflow-x-hidden overflow-y-auto \
-                          bg-surface-ground font-normal text-text-color antialiased select-text"}>
-            <button className={buttonClass()} 
+          <div className={"space-x-2 p-4 bg-surface-ground"}>
+            <button 
+              className={buttonClass()} 
               onClick={() => clearSearch()}>
-              Clear Search
+                Clear Search
             </button>
-
-            <button className={buttonClass(keepSearch)} 
+            <button 
+              className={buttonClass(keepSearch)} 
               onClick={() => setKeepSearch(!keepSearch)}>
-              Keep URL Search Terms
+                Keep URL Search Terms
             </button>
-
-            <button className={buttonClass(requiredFilter)} 
+            <button 
+              className={buttonClass(requiredFilter)} 
               onClick={() => setRequiredFilter(!requiredFilter)}>
-              Required Jobs Only
+                Required Jobs Only
             </button>
           </div>
-
         </div>
 
-        <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto bg-surface-ground \
-                          font-normal text-text-color antialiased select-text"}>
-          <div>{renderTable()}</div>
+        <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
+                          bg-surface-ground antialiased select-text"}>
           <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
+          <div>{renderTable()}</div>
         </main>
       </div>
     </>
