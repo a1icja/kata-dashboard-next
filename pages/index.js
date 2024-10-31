@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 
 import { DataTable } from "primereact/datatable";
 import { Column }    from "primereact/column";
-import { Tooltip }   from 'primereact/tooltip';
+import { OverlayPanel } from 'primereact/overlaypanel';
 
 import NightlyData  from "../data/job_stats.json";
 import PRData       from "../data/check_stats.json";
@@ -29,6 +29,7 @@ export default function Home() {
     "stormy.svg",
   ];
 
+
   // Fetch data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
@@ -45,6 +46,7 @@ export default function Home() {
     fetchData();
   }, []);
 
+
   // Get bar chart statistics. 
   const getTotalStats = (data) => {
     return data.reduce((acc, job) => {
@@ -56,6 +58,7 @@ export default function Home() {
   };
   const totalStats = display === "nightly" ? getTotalStats(jobs) : getTotalStats(checks);
 
+  // Clear search parameters if they exist.
   const clearSearch = () => {
     const urlParts = window.location.href.split("?");
     if(urlParts[1] !== undefined){
@@ -81,43 +84,38 @@ export default function Home() {
   };
 
   const matchAny = (name, parts) => {
-    const matchFunctions = {
-      contains: (n, v) => n.includes(v),
-      notContains: (n, v) => !n.includes(v),
-      equals: (n, v) => n === v,
-      notEquals: (n, v) => n !== v,
-      startsWith: (n, v) => n.startsWith(v),
-      endsWith: (n, v) => n.endsWith(v),
+    const filterMap = {
+      contains   : (name) => name.includes(decoded),
+      notContains: (name) => !name.includes(decoded),
+      equals     : (name) => name === decoded,
+      notEquals  : (name) => name !== decoded,
+      startsWith : (name) => name.startsWith(decoded),
+      endsWith   : (name) => name.endsWith(decoded),
     };
-  
     return parts.slice(2).some(part => {
       const [matchMode, value] = part.split('=')[1].split('&');
       const decoded = decodeURIComponent(value).replace('/', '').trim().toLowerCase();
-      return matchFunctions[matchMode]?.(name, decoded);
+      return filterMap[matchMode]?.(name, decoded);
     });
   };
   
-
   useEffect(() => {
     setLoading(true);
     let filteredJobs = display === "nightly" ? jobs : checks;
     if (requiredFilter) filteredJobs = filteredJobs.filter((job) => job.required);
 
     const urlParts = window.location.href.split("?");
-    
     if(urlParts[2] !== undefined){
       if (urlParts[1] === "and/"){
         filteredJobs = matchAll(filteredJobs, urlParts);
       } else {
         filteredJobs =  filteredJobs.filter((job) =>
-          matchAny(job.name.toLowerCase(), urlParts)
-        );
+          matchAny(job.name.toLowerCase(), urlParts));
       }
     }
    
-    
     setRows(
-      filteredJobs.map((job, idx) => ({
+      filteredJobs.map((job) => ({
         name    : job.name,
         runs    : job.runs,
         fails   : job.fails,
@@ -131,10 +129,12 @@ export default function Home() {
     setLoading(false);
   }, [jobs, checks, requiredFilter, display]);
 
+
   // Close all rows on view switch. 
   useEffect(() => {
     setExpandedRows([])
   }, [display]); 
+
 
   const getWeatherIndex = (stat) => {
     const failRate = (stat.fails + stat.skips) / (stat.runs + stat.reruns.reduce((total, r) => total + r, 0));
@@ -149,12 +149,6 @@ export default function Home() {
     </div>
   );
 
-  const toggleRow = (rowData) => {
-    setExpandedRows((prev) =>
-      prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
-    );
-  };
-
   const nameTemplate = (rowData) => (
     <span onClick={() => toggleRow(rowData)} className="cursor-pointer">
       {rowData.name}
@@ -166,6 +160,15 @@ export default function Home() {
 
   const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
     ${active ? "border-blue-500 bg-gray-300" : "border-gray-300 bg-white"}`;
+
+
+  const toggleRow = (rowData) => {
+    setExpandedRows((prev) =>
+      prev.includes(rowData) ? prev.filter((r) => r !== rowData) : [...prev, rowData]
+    );
+  };
+
+  const overlayRefs = useRef([]);
 
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" ? jobs : checks).find((job) => job.name === data.name);
@@ -193,41 +196,50 @@ export default function Home() {
       reruns: job.reruns[idx],
       rerun_result: job.rerun_results[idx],
       url: job.urls[idx],
-    }));    
+      attempt_urls: job.attempt_urls[idx],
+    })); 
 
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         <div className="flex flex-wrap gap-4">
-          {runEntries.map(({run_num, result, url, reruns, rerun_result, rerun_urls }, idx) => {
-            //var runStatuses = `${result === 'Pass' ? '✅ Success' : result === 'Fail' ? '❌ Fail' : '⚠️ Warning'}`;
-
+          {runEntries.map(({run_num, result, url, reruns, rerun_result, attempt_urls }, idx) => {
             const allResults = rerun_result ?  [result, ...rerun_result] : [result];
             const runStatuses = allResults.map((result, idx) => 
               `${allResults.length - idx}. ${result === 'Pass' 
                 ? '✅ Success' 
                 : result === 'Fail' 
                   ? '❌ Fail' 
-                  : '⚠️ Warning'}`).join('\n');
-
-            // console.log("runStatuses: " +runStatuses);
+                  : '⚠️ Warning'}`);
 
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, ''); // IDs can't have a '/'...
             const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
+            overlayRefs.current[idx] = overlayRefs.current[idx] || React.createRef();
+
             return (
               <div key={run_num} className="flex">
                 <div key={idx} className="flex items-center">
-                  <a href={url} target="_blank">
+                  <a href={url} target="_blank" rel="noopener noreferrer">
                     {getRunStatusIcon(allResults)} {run_num}
-                      {/* {result === 'Pass' ? '✅' : result === 'Fail' ? '❌' : '⚠️'} {run_num} */}
                   </a>
                 </div>
                 {reruns > 0 &&(
                   <span className="p-overlay-badge">
                     <sup  id={badgeId}
-                          className="text-xs font-bold align-super ml-1">
+                          className="text-xs font-bold align-super ml-1"
+                          onMouseEnter={(e) => overlayRefs.current[idx].current.toggle(e)}>
                     {reruns}
                     </sup>
-                    <Tooltip target={`#${badgeId}`} content={runStatuses} position="top" tooltipOptions={{ autoHide: 'false' }}/>
+                    <OverlayPanel ref={overlayRefs.current[idx]} dismissable>
+                    <ul className="bg-white border rounded shadow-lg p-2">
+                      {runStatuses.map((status, index) => (
+                        <li key={index} className="py-1 px-2 hover:bg-gray-200">
+                          <a href={attempt_urls[index]} target="_blank" rel="noopener noreferrer">
+                            {status}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </OverlayPanel>
                   </span>
                 )}
               </div>
@@ -247,6 +259,7 @@ export default function Home() {
     );
   };
 
+  // Apply search terms to the URL and reload the page. 
   const handleFilterApply = (e) => {
     if (e.constraints.constraints[0].value) {
       let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
