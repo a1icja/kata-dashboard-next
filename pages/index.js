@@ -380,8 +380,8 @@ export default function Home() {
               <BarChart data={totalStats} />
         </div>
 
-        <div className="flex flex-wrap mt-2">
-          <div className="space-x-2 p-4">
+        <div className="flex flex-wrap mt-2 p-4 text-base">
+          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -394,7 +394,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="space-x-2 p-4">
+          <div className="space-x-2 mx-auto lg:mr-0">
             <button 
               className={buttonClass()} 
               onClick={() => clearSearch()}>
@@ -414,8 +414,8 @@ export default function Home() {
         </div>
 
 
-        <div className="flex flex-col items-center mr-4">
-          <div className="flex justify-end w-full"> 
+        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
+          <div className="flex min-[960px]:justify-end justify-center w-full"> 
             <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
                 <label className="block text-white">Match Mode:</label>
