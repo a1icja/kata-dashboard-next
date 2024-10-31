@@ -17,8 +17,9 @@
 // NODE_ENV=development
 // TOKEN=token <GITHUB_PAT_OR_OTHER_VALID_TOKEN>
 
-// Set token used for making Authorized GitHub API calls
-const TOKEN = process.env.TOKEN;  // In dev, set by .env file; in prod, set by GitHub Secret
+// Set token used for making Authorized GitHub API calls.
+// In dev, set by .env file; in prod, set by GitHub Secret.
+const TOKEN = process.env.TOKEN;  
   
 // Github API URL for the kata-container ci-nightly workflow's runs. This
 // will only get the most recent 10 runs ('page' is empty, and 'per_page=10').
@@ -26,7 +27,8 @@ const ci_nightly_runs_url =
   "https://api.github.com/repos/" +
   "kata-containers/kata-containers/actions/workflows/" +
   "ci-nightly.yaml/runs?per_page=10";
-  // NOTE: For checks run on main after push/merge, do similar call with: payload-after-push.yaml
+  // NOTE: For checks run on main after push/merge,
+  // do similar call with: payload-after-push.yaml.
 
 // Github API URL for the main branch of the kata-containers repo.
 // Used to get the list of required jobs.
@@ -37,8 +39,9 @@ const main_branch_url =
 // The number of jobs to fetch from the github API on each paged request.
 const jobs_per_request = 100;
 
-// Count of the number of fetches
+// Count of the number of fetches.
 var fetch_count = 0;
+
 
 // Perform a github API request for workflow runs.
 async function fetch_workflow_runs() {
@@ -59,7 +62,8 @@ async function fetch_workflow_runs() {
   return await json;
 }
 
-// Perform a github API request for a list of "Required" jobs
+
+// Perform a github API request for a list of "Required" jobs.
 async function fetch_main_branch() {
   const response = await fetch(main_branch_url, {
     headers: {
@@ -79,13 +83,20 @@ async function fetch_main_branch() {
   return json;
 }
 
-// Get job data about a workflow run
+
+// Extract list of required jobs. 
+// (i.e. main branch details: protection: required_status_checks: contexts)
+function get_required_jobs(main_branch) {
+  return main_branch["protection"]["required_status_checks"]["contexts"];
+}
+
+
+// Get job data about a workflow run.
 // Returns a map that has information about a run, e.g.
 //   ID assigned by github
 //   run number assigned by github
-//   'jobs' array, which has some details about each job from that run
+//   'jobs' array, which has some details about each job from that run.
 function get_job_data(run) {
-
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
     const jobs_url =
@@ -115,7 +126,7 @@ function get_job_data(run) {
         run_with_job_data["jobs"].push({
           name: job["name"],
           run_id: job["run_id"],
-          html_url: job["html_url"],
+          html_url: job["html_url"],      // URL to a job in a specific run
           conclusion: job["conclusion"],
           reruns: job["run_attempt"] - 1,
         });
@@ -132,7 +143,7 @@ function get_job_data(run) {
     run_number: run["run_number"],
     created_at: run["created_at"],
     previous_attempt_url: run["previous_attempt_url"],
-    html_url: run["html_url"],
+    html_url: run["html_url"],           // URL to the overall run 
     conclusion: null,
     jobs: [],
   };
@@ -146,77 +157,7 @@ function get_job_data(run) {
 }
 
 
-// Extract list of required jobs 
-// (i.e. main branch details: protection: required_status_checks: contexts)
-function get_required_jobs(main_branch) {
-  return main_branch["protection"]["required_status_checks"]["contexts"];
-}
-
-function count_stats(result, job_stat){
-  if (result === "Skip") {
-    job_stat["skips"] += 1;
-  } else if (result === "Fail"){
-    job_stat["fails"] += 1;
-  }
-  return job_stat;
-}
-
-// Calculate and return job stats across all runs
-function compute_job_stats(runs_with_job_data, required_jobs) {
-  const job_stats = {};
-  for (const run of runs_with_job_data) {
-    for (const job of run["jobs"]) {
-      if (!(job["name"] in job_stats)) {
-        job_stats[job["name"]] = {
-          runs: 0,      // e.g. 10, if it ran 10 times
-          fails: 0,     // e.g. 3, if it failed 3 out of 10 times
-          skips: 0,     // e.g. 7, if it got skipped the other 7 times
-          urls: [],     // ordered list of URLs associated w/ each run
-          results: [],  // an array of strings, e.g. 'Pass', 'Fail', ...
-          run_nums: [], // ordered list of github-assigned run numbers
-          reruns: [],    // the total number of times the test was rerun
-          rerun_results: [], // an array of strings, e.g. 'Pass', 'Fail', for reruns
-          rerun_urls: [],     // an array of urls for each run rerun attempt
-        };
-      }
-      var job_stat = job_stats[job["name"]];
-      job_stat["runs"] += 1;
-      job_stat["run_nums"].push(run["run_number"]);
-      job_stat["required"] = required_jobs.includes(job["name"]);
-      job_stat["reruns"].push(job["reruns"]);
-      job_stat["rerun_results"].push(job["attempt_results"]);
-      job_stat["urls"].push(run["html_url"]);
-
-      const jobURLs = [job["html_url"]];
-      if(job["attempt_results"]){
-        jobURLs.push(...job["rerun_urls"]);
-        job["attempt_results"].forEach(result => {
-          job_stat = count_stats(result, job_stat);
-        });
-      }
-      job_stat["rerun_urls"].push(jobURLs);
-
-      if (job["conclusion"] != "success") {
-        if (job["conclusion"] == "skipped") {
-          job_stat["skips"] += 1;
-          job_stat["results"].push("Skip");
-        } else {
-          // failed or cancelled
-          job_stat["fails"] += 1;
-          job_stat["results"].push("Fail");
-        }
-      } else {
-        job_stat["results"].push("Pass");
-      }
-
-      
-    }
-  }
-  return job_stats;
-}
-
-  
-// Using the previous URL, fetch the json to get the next URL        
+// Using the previous URL, fetch the json to get the next URL.        
 async function fetch_previous_attempt_url(prev_url) {   
   const jobs_url = `${prev_url}?per_page=${jobs_per_request}&page=1`;
   const response = await fetch(jobs_url, {
@@ -236,7 +177,8 @@ async function fetch_previous_attempt_url(prev_url) {
   return await json;
 }
 
-// Using the previous URL, look at the json with jobs
+
+// Using the previous URL, look at the json with jobs.
 // This will have the results for each job for a previous run. 
 async function fetch_attempt_results(prev_url) {   
   const jobs_url = `${prev_url}/jobs`;
@@ -259,39 +201,30 @@ async function fetch_attempt_results(prev_url) {
 
 
 // Get the attempt results for reruns for each job in each run.
-// This constructs the field "attempt_results" for each job
-// Field will have the result for each rerun. If no reruns, it's null.
+// This constructs the field "attempt_results" and "rerun_urls" for each job.
+// Results will have the result for each rerun. If no reruns, it's null.
 async function get_atttempt_results(runs_with_job_data){
   for (const run of runs_with_job_data) {
     var prev_url = run["previous_attempt_url"];
-    // If the run has a previous attempt (won't be null), process it. 
-    // Fetch results from prev_url until it's null (no more prior attempts).
+    // If the run has a previous attempt (prev_url isn't null), process it. 
     while (prev_url !== null){
-      // Get json with results for the run, has job information.
+      // Get json with results for the run, which has job information.
       const json1 = await fetch_attempt_results(prev_url); 
       if(json1 === null){
         throw new Error("json1 empty");
       }  
+
       // For each job in the run, append the result.
       for (const job of run["jobs"]) {
         // Find the job in the json that matches the current job name.
         const match = json1.jobs.find((j) => j.name === job["name"]);
 
-        // console.log(json1.job.html_url)
-
-        // Initialize job["attempt_results"] if not initialized before.
+        // Initialize structures if not initialized before.
         job["attempt_results"] ??= [];
         job["rerun_urls"] ??= [];
 
-        // console.log("before: "+job["rerun_urls"])
-
-
-        // job["rerun_urls"].push(prev_url)
-
-        // console.log("after: "+job["rerun_urls"])
-        // console.log();
-
         if (match) {
+          // Add the URLs for all attempts.
           job["rerun_urls"].push(match.html_url);
 
           // Find the last step to see the final conclusion for the job.
@@ -303,23 +236,23 @@ async function get_atttempt_results(runs_with_job_data){
               if (completed.conclusion == "skipped") {
                 job["attempt_results"].push("Skip");
               } else {
-                // failed or cancelled
+                // Failed or cancelled.
                 job["attempt_results"].push("Fail");
               }
             } else {
               job["attempt_results"].push("Pass");
             }
           } else {
-            // Never completed
+            // Never completed.
             job["attempt_results"].push("Fail");
           }
         } else {
-          // Not Ran
+          // Not Ran.
           job["rerun_urls"].push(null);
           job["attempt_results"].push("Skip");
         }
       }
-      // Get json with next attempt URL
+      // Get json with next attempt URL.
       const json2 = await fetch_previous_attempt_url(prev_url);
       if(json2 === null){
         throw new Error("json2 empty");
@@ -329,6 +262,74 @@ async function get_atttempt_results(runs_with_job_data){
   }
   return runs_with_job_data;
 }
+
+
+// Add rerun results to fails/skips.
+function count_stats(result, job_stat){
+  if (result === "Skip") {
+    job_stat["skips"] += 1;
+  } else if (result === "Fail"){
+    job_stat["fails"] += 1;
+  }
+  return job_stat;
+}
+
+
+// Calculate and return job stats across all runs
+function compute_job_stats(runs_with_job_data, required_jobs) {
+  const job_stats = {};
+  for (const run of runs_with_job_data) {
+    for (const job of run["jobs"]) {
+      if (!(job["name"] in job_stats)) {
+        job_stats[job["name"]] = {
+          runs: 0,            // e.g. 10, if it ran 10 times
+          fails: 0,           // e.g. 3, if it failed 3 out of 10 times
+          skips: 0,           // e.g. 7, if it got skipped the other 7 times
+          urls: [],           // ordered list of URLs to each run
+          results: [],        // an array of strings, e.g. 'Pass', 'Fail', ...
+          run_nums: [],       // ordered list of github-assigned run numbers
+          reruns: [],         // the total number of times the test was rerun
+          rerun_results: [],  // an array of strings, e.g. 'Pass', for reruns
+          attempt_urls: [],   // ordered list of URLs to each job in a specific run
+        };
+      }
+      var job_stat = job_stats[job["name"]];
+      job_stat["runs"] += 1;
+      job_stat["run_nums"].push(run["run_number"]);
+      job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["reruns"].push(job["reruns"]);
+      job_stat["rerun_results"].push(job["attempt_results"]);
+      job_stat["urls"].push(run["html_url"]);
+
+      // Always add the URL from the latest attempt.
+      const jobURLs = [job["html_url"]];
+      if(job["attempt_results"]){
+        // Recompute the fails/skips for the job with the rerun results. 
+        job["attempt_results"].forEach(result => {
+          job_stat = count_stats(result, job_stat);
+        });
+        // Add the rerun URLs if they exist.
+        jobURLs.push(...job["rerun_urls"]);
+      }
+      job_stat["attempt_urls"].push(jobURLs);
+
+      if (job["conclusion"] != "success") {
+        if (job["conclusion"] == "skipped") {
+          job_stat["skips"] += 1;
+          job_stat["results"].push("Skip");
+        } else {
+          // failed or cancelled
+          job_stat["fails"] += 1;
+          job_stat["results"].push("Fail");
+        }
+      } else {
+        job_stat["results"].push("Pass");
+      }    
+    }
+  }
+  return job_stats;
+}
+
 
 async function main() {
   // Fetch recent workflow runs via the github API
