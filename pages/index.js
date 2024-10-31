@@ -253,8 +253,8 @@ export default function Home() {
             return (
               <div key={run_num} className="flex">
                 <div key={idx} className="flex items-center">
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                  {/* <a href={attempt_urls[0]} target="_blank" rel="noopener noreferrer"> */}
+                  {/* <a href={url} target="_blank" rel="noopener noreferrer"> */}
+                  <a href={attempt_urls[0]} target="_blank" rel="noopener noreferrer">
                     {getRunStatusIcon(allResults)} {run_num}
                   </a>
                 </div>
@@ -263,7 +263,7 @@ export default function Home() {
                     <sup  className="text-xs font-bold align-super ml-1"
                           onMouseEnter={(e) => 
                             overlayRefs.current[badgeId].current.toggle(e)}>
-                      {reruns}
+                      {reruns+1}
                     </sup>
                     <OverlayPanel ref={overlayRefs.current[badgeId]} dismissable
                     onMouseLeave={(e) => 
@@ -347,25 +347,25 @@ export default function Home() {
         filterPlaceholder="Search..."
         sortable
       />
-      <Column field = {"required"}      header = "Required" sortable/>
+      <Column field = "required"      header = "Required" sortable/>
       <Column 
-        field = {"runs"}   
+        field = "runs"   
         header = "Runs"
         className="whitespace-nowrap px-2 select-all"
         // body={(data) => (
         //   <span className="whitespace-nowrap">
         //     <span className="font-bold">
-        //         {data.runs + data.total_reruns}
-        //       </span> 
+        //       {data.runs}
+        //     </span > 
         //     {data.total_reruns > 0 
-        //       ? ` (${data.total_reruns} reruns)` 
+        //       ? ` (${data.runs + data.total_reruns} total)` 
         //       : ''}
         //   </span>
-        // )}            
+        // )} 
         sortable />
-      <Column field = {"total_reruns"}  header = "Reruns"  sortable/>
-      <Column field = {"fails"}         header = "Fails"   sortable/>
-      <Column field = {"skips"}         header = "Skips"   sortable/>
+      <Column field = "total_reruns"  header = "Reruns"  sortable/>
+      <Column field = "fails"         header = "Fails"   sortable/>
+      <Column field = "skips"         header = "Skips"   sortable/>
       <Column 
         field = "weather"  
         header = "Weather"  
