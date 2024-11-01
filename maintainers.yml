@@ -1,9 +1,11 @@
 # maintainers.yaml
+#
 # @kata-containers/arch-s390x: BbolroC
 # @kata-containers/arch-ppc64le: Amulyam24?
 # @kata-containers/cri-o: ?
 # @kata-containers/dragonball: bergwolf
 # @kata-containers/rust: pmores, lifupan
+# @kata-containers/amd: AdithyaKrishnan, ryansavino
 
 
 ## slack: member id, display name, or link to profile?
@@ -55,3 +57,21 @@ mappings:
         # slack: "U059Y60DZPW"
         slack: "fupan li"
         github: "lifupan"
+
+# @kata-containers/amd: AdithyaKrishnan, ryansavino
+  - regex: ".*sev.*"
+    owners:
+      - fullname: "Adithya Krishnan Kannan"
+        email: "AdithyaKrishnan.Kannan@amd.com"
+        # slack: "https://cloud-native.slack.com/team/U05TX2URB16"
+        # slack: "U05TX2URB16"
+        slack: "Adi"
+        github: "AdithyaKrishnan"
+
+      - fullname: "Ryan Savino"
+        email: ""
+        # slack: "https://cloud-native.slack.com/team/U03CXU0LY79"
+        # slack: "U03CXU0LY79"
+        slack: "Ryan Savino"
+        github: "ryansavino"
+
