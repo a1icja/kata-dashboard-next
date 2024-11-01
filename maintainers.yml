@@ -59,7 +59,7 @@ mappings:
         github: "lifupan"
 
 # @kata-containers/amd: AdithyaKrishnan, ryansavino
-  - regex: ".*sev.*"
+  - regex: "run-k8s-tests.*sev.*"
     owners:
       - fullname: "Adithya Krishnan Kannan"
         email: "AdithyaKrishnan.Kannan@amd.com"
@@ -69,7 +69,7 @@ mappings:
         github: "AdithyaKrishnan"
 
       - fullname: "Ryan Savino"
-        email: ""
+        email: "ryan.savino@amd.com"
         # slack: "https://cloud-native.slack.com/team/U03CXU0LY79"
         # slack: "U03CXU0LY79"
         slack: "Ryan Savino"
