@@ -59,7 +59,7 @@ mappings:
         github: "lifupan"
 
 # @kata-containers/amd: AdithyaKrishnan, ryansavino
-  - regex: "run-k8s-tests.*sev.*"
+  - regex: ".*qemu-(sev|snp).*"
     owners:
       - fullname: "Adithya Krishnan Kannan"
         email: "AdithyaKrishnan.Kannan@amd.com"

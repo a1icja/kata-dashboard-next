@@ -210,13 +210,9 @@ export default function Home() {
       attempt_urls: job.attempt_urls[idx],
     })); 
 
-    const maintainerMatch = MaintainerMapping.mappings.find(({ regex }) => 
-      new RegExp(regex).test(job.name)
-    );
-    
-    const maintainerData = maintainerMatch 
-      ? maintainerMatch.owners 
-      : []; 
+    const maintainerData = MaintainerMapping.mappings
+      .filter(({ regex }) => new RegExp(regex).test(job.name))
+      .flatMap(match => match.owners);
 
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
