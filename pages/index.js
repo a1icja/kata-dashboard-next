@@ -16,10 +16,14 @@ export default function Home() {
   const [jobs,           setJobs]           = useState([]);
   const [checks,         setChecks]         = useState([]);
   const [rows,           setRows]           = useState([]);
+  const [rowsSingle,     setRowsSingle]     = useState([]);
+
   const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
   const [keepSearch,     setKeepSearch]     = useState(true);
   const [display,        setDisplay]        = useState("nightly");
+  const [selectedRun,    setSelectedRun]    = useState([]);
+
 
   const icons = [
     "sunny.svg",
@@ -353,6 +357,71 @@ export default function Home() {
     </DataTable>
   );
 
+  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))];
+
+
+  useEffect(() => {
+    setLoading(true);
+    console.log("set rows!!")
+    const filteredData = checks.map((check) => {
+      if (selectedRun.length == 0){
+         setSelectedRun(document.getElementById("selectedrun").value);
+      }
+      const index = check.run_nums.indexOf(Number(selectedRun));
+      return index !== -1
+        ? {
+            name: check.name, // Assuming each stats object has a 'name' property
+            result: check.results[index],
+            reruns: check.reruns[index],
+          }
+        : null;
+    }).filter(Boolean); // Filters out any null entries
+  
+    setRowsSingle(filteredData);
+    setLoading(false);
+  }, [selectedRun, display]);
+  
+    
+  
+  const renderSingleViewTable = () => 
+    { 
+      console.log("render!!");
+
+      return(
+    <DataTable
+      value={rowsSingle}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage="No results found."
+    >
+      <Column expander />
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate}  // Directly access the name
+        className="select-all"
+        sortable
+      />
+      <Column
+        field="result"
+        header="Result"
+        body={(data) => data.result || "N/A"}  // Access the result directly
+        sortable
+      />
+      <Column
+        field="reruns"
+        header="Reruns"
+        body={(data) => data.reruns}  // Access the reruns directly
+        sortable
+      />
+    </DataTable>
+  );}
+  
+  
+
   return (
     <>
       <title>Kata CI Dashboard</title>
@@ -376,8 +445,9 @@ export default function Home() {
               <BarChart data={totalStats} />
         </div>
 
+
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pr-4 mx-auto mb-2 lg:ml-0">
+          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -388,38 +458,64 @@ export default function Home() {
               onClick={() => setDisplay("prchecks")}>
               PR Checks
             </button>
-          </div>
+            <button 
+              className={tabClass(display === "prsingle")}
+              onClick={() => setDisplay("prsingle")}>
+              Single PR View
+            </button>
+            {display === "prsingle" && ( 
+              <div className="mb-3">
+              <label htmlFor="runNumSelect" className="block text-white">Select PR Number:</label>
+              <select 
+                id="selectedrun"
+                className="px-1 h-fit rounded-lg"
+                onChange={(e) => setSelectedRun(e.target.value)}
+                defaultValue={runNumOptions.length > 0 ? runNumOptions[0] : ""} >
+                <option value="" disabled>Select a PR Number</option>
+                {runNumOptions.map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+              </div>
+              )}
+            </div>
 
-          <div className="flex flex-col lg:flex-row items-center lg:space-x-4 mx-auto lg:mr-0">
-            <form className="p-2 h-fit mb-2 bg-gray-700 border-2 border-gray-600 flex flex-row" onSubmit={(e) => handleForm(e)}> 
+          <div className="space-x-2 mx-auto lg:mr-0">
+            <button 
+              className={buttonClass()} 
+              onClick={() => clearSearch()}>
+              Clear Search
+            </button>
+            <button 
+              className={buttonClass(keepSearch)} 
+              onClick={() => setKeepSearch(!keepSearch)}>
+              Keep URL Search Terms
+            </button>
+            <button 
+              className={buttonClass(requiredFilter)} 
+              onClick={() => setRequiredFilter(!requiredFilter)}>
+              Required Jobs Only
+            </button>
+          </div>
+        </div>
+
+
+        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
+          <div className="flex min-[960px]:justify-end justify-center w-full"> 
+            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
+                <label className="block text-white">Match Mode:</label>
                 <select name="matchMode" className="px-1 h-fit rounded-lg">
                   <option value="or">Match Any</option>
                   <option value="and">Match All</option>
                 </select>
               </div>
               <div className="mx-2">
+                <label className="block text-white">Search Text:</label>
                 <input type="text" name="value" required></input>
               </div>
-              <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
+              <button type="submit" className="bg-blue-500 text-white px-4 rounded-3xl">Submit</button>
             </form>
-            <div className="flex mb-2 space-x2 flex-row lg:mr-0 lg:space-x-2">
-              <button 
-                className={buttonClass()} 
-                onClick={() => clearSearch()}>
-                Clear Search
-              </button>
-              <button 
-                className={buttonClass(keepSearch)} 
-                onClick={() => setKeepSearch(!keepSearch)}>
-                Keep URL Search Terms
-              </button>
-              <button 
-                className={buttonClass(requiredFilter)} 
-                onClick={() => setRequiredFilter(!requiredFilter)}>
-                Required Jobs Only
-              </button>
-            </div>
           </div>
         </div>
         
@@ -427,7 +523,8 @@ export default function Home() {
 
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
-          <div>{renderTable()}</div>
+          {/* <div>{renderTable()}</div> */}
+          <div>{display === "prsingle" ? renderSingleViewTable() : renderTable()}</div>
         </main>
       </div>
     </>
