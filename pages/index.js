@@ -403,7 +403,7 @@ export default function Home() {
               </div>
               <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
             </form>
-            <div className="flex mb-2 space-x2 flex-row lg:mr-0">
+            <div className="flex mb-2 space-x2 flex-row lg:mr-0 lg:space-x-2">
               <button 
                 className={buttonClass()} 
                 onClick={() => clearSearch()}>
