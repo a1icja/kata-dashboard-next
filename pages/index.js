@@ -377,7 +377,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pr-4 mx-auto lg:ml-0">
+          <div className="space-x-2 pr-4 mx-auto mb-2 lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -390,8 +390,8 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="flex flex-col lg:flex-row items-center lg:space-x-4">
-            <form className="p-2 h-fit bg-gray-700 border-2 border-gray-600 flex flex-row" onSubmit={(e) => handleForm(e)}> 
+          <div className="flex flex-col lg:flex-row items-center lg:space-x-4 mx-auto lg:mr-0">
+            <form className="p-2 h-fit mb-2 bg-gray-700 border-2 border-gray-600 flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
                 <select name="matchMode" className="px-1 h-fit rounded-lg">
                   <option value="or">Match Any</option>
@@ -403,21 +403,23 @@ export default function Home() {
               </div>
               <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
             </form>
-            <button 
-              className={buttonClass()} 
-              onClick={() => clearSearch()}>
-              Clear Search
-            </button>
-            <button 
-              className={buttonClass(keepSearch)} 
-              onClick={() => setKeepSearch(!keepSearch)}>
-              Keep URL Search Terms
-            </button>
-            <button 
-              className={buttonClass(requiredFilter)} 
-              onClick={() => setRequiredFilter(!requiredFilter)}>
-              Required Jobs Only
-            </button>
+            <div className="flex mb-2 space-x2 flex-row lg:mr-0">
+              <button 
+                className={buttonClass()} 
+                onClick={() => clearSearch()}>
+                Clear Search
+              </button>
+              <button 
+                className={buttonClass(keepSearch)} 
+                onClick={() => setKeepSearch(!keepSearch)}>
+                Keep URL Search Terms
+              </button>
+              <button 
+                className={buttonClass(requiredFilter)} 
+                onClick={() => setRequiredFilter(!requiredFilter)}>
+                Required Jobs Only
+              </button>
+            </div>
           </div>
         </div>
         
