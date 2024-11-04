@@ -35,7 +35,7 @@ const results_per_request = 100;
 // The last X closed PRs to retrieve
 const pr_count = 10; 
 // Count of the number of fetches
-var fetch_count = 0;
+// var fetch_count = 0;
 
 
 // Perform a github API request for the last pr_count closed PRs
@@ -77,7 +77,7 @@ async function fetch_main_branch() {
 
     const json = await response.json();
     fetch_count += 1;
-    const contexts = json?.protection?.required_status_checks?.contexts;
+    // const contexts = json?.protection?.required_status_checks?.contexts;
     // console.log(`fetch ${fetch_count}: ${main_branch_url}
     //     required jobs cnt: ${contexts.length}`);
     return json;
