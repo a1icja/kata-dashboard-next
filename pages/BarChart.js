@@ -9,7 +9,11 @@ const BarChart = ({ data }) => {
     datasets: [
       {
         label: 'Job Stats',
-        data: [data.runs, data.fails, data.skips],
+        data: [
+          data?.runs || 0, 
+          data?.fails || 0, 
+          data?.skips || 0
+        ],
         backgroundColor: ['#36a2eb', '#ff6384', '#ffcd56'],
         borderColor: ['#36a2eb', '#ff6384', '#ffcd56'],
         borderWidth: 1,

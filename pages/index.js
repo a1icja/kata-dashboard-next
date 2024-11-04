@@ -377,7 +377,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0">
+          <div className="space-x-2 pr-4 mx-auto lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -390,7 +390,19 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="space-x-2 mx-auto lg:mr-0">
+          <div className="flex flex-col lg:flex-row items-center lg:space-x-4">
+            <form className="p-2 h-fit bg-gray-700 border-2 border-gray-600 flex flex-row" onSubmit={(e) => handleForm(e)}> 
+              <div>
+                <select name="matchMode" className="px-1 h-fit rounded-lg">
+                  <option value="or">Match Any</option>
+                  <option value="and">Match All</option>
+                </select>
+              </div>
+              <div className="mx-2">
+                <input type="text" name="value" required></input>
+              </div>
+              <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
+            </form>
             <button 
               className={buttonClass()} 
               onClick={() => clearSearch()}>
@@ -408,28 +420,8 @@ export default function Home() {
             </button>
           </div>
         </div>
-
-
-        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
-          <div className="flex min-[960px]:justify-end justify-center w-full"> 
-            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
-              <div>
-                <label className="block text-white">Match Mode:</label>
-                <select name="matchMode" className="px-1 h-fit rounded-lg">
-                  <option value="or">Match Any</option>
-                  <option value="and">Match All</option>
-                </select>
-              </div>
-              <div className="mx-2">
-                <label className="block text-white">Search Text:</label>
-                <input type="text" name="value" required></input>
-              </div>
-              <button type="submit" className="bg-blue-500 text-white px-4 rounded-3xl">Submit</button>
-            </form>
-          </div>
-        </div>
         
-        <div className="mt-4 text-lg text-center">Total Rows: {rows.length}</div>
+        <div className="mt-1 text-lg text-center">Total Rows: {rows.length}</div>
 
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
