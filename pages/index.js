@@ -213,7 +213,7 @@ export default function Home() {
           {runEntries.map(({
             run_num, 
             result, 
-            url, 
+            // url, 
             reruns, 
             rerun_result, 
             attempt_urls 
@@ -255,7 +255,7 @@ export default function Home() {
                       overlayRefs.current[badgeId].current.toggle(e)}>
                     <ul className="bg-white border rounded shadow-lg p-2">
                       {runStatuses.map((status, index) => (
-                        <li className="p-2 hover:bg-gray-200">
+                        <li key={index} className="p-2 hover:bg-gray-200">
                           <a 
                             href={attempt_urls[index]} 
                             target="_blank" 
