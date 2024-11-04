@@ -104,6 +104,9 @@ export default function Home() {
         });
     });
   };
+
+  // Reduce latency here
+  // Filter required for single too. 
     
   useEffect(() => {
     setLoading(true);
@@ -312,6 +315,7 @@ export default function Home() {
     }
   };
 
+  // Render table for nightly/prchecks view
   const renderTable = () => (
     <DataTable
       value={rows}
@@ -357,37 +361,33 @@ export default function Home() {
     </DataTable>
   );
 
+  // Make a list of all unique run numbers in the check data.
   const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))];
 
-
+  // Filter and set the rows for prsingle view. 
   useEffect(() => {
     setLoading(true);
-    console.log("set rows!!")
     const filteredData = checks.map((check) => {
-      if (selectedRun.length == 0){
-         setSelectedRun(document.getElementById("selectedrun").value);
-      }
+      // Only if the check include the run number, add it to the data. 
       const index = check.run_nums.indexOf(Number(selectedRun));
       return index !== -1
         ? {
-            name: check.name, // Assuming each stats object has a 'name' property
+            name: check.name,
+            required: check.required,
             result: check.results[index],
             reruns: check.reruns[index],
           }
         : null;
-    }).filter(Boolean); // Filters out any null entries
+    }).filter(Boolean); 
   
+    //Set the rows for the prsingle table
     setRowsSingle(filteredData);
     setLoading(false);
-  }, [selectedRun, display]);
+  }, [selectedRun]);
   
     
-  
-  const renderSingleViewTable = () => 
-    { 
-      console.log("render!!");
-
-      return(
+  // Render table for prsingle view 
+  const renderSingleViewTable = () => (
     <DataTable
       value={rowsSingle}
       expandedRows={expandedRows}
@@ -395,35 +395,37 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage="No results found."
+      emptyMessage={selectedRun.length == 0 ? "Select a Run" : "No results found."}
     >
       <Column expander />
       <Column
         field="name"
         header="Name"
-        body={nameTemplate}  // Directly access the name
+        body={nameTemplate} 
         className="select-all"
+        sortable
+      />
+      <Column
+        field="required"
+        header="Required"
         sortable
       />
       <Column
         field="result"
         header="Result"
-        body={(data) => data.result || "N/A"}  // Access the result directly
         sortable
       />
       <Column
         field="reruns"
         header="Reruns"
-        body={(data) => data.reruns}  // Access the reruns directly
         sortable
       />
     </DataTable>
-  );}
-  
-  
+  );
 
   return (
     <>
+
       <title>Kata CI Dashboard</title>
       <div className="text-center text-xs md:text-base">
         <h1 className={"text-4xl mt-4 mb-6 underline text-inherit \
@@ -447,7 +449,7 @@ export default function Home() {
 
 
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0">
+          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0 flex">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -464,13 +466,12 @@ export default function Home() {
               Single PR View
             </button>
             {display === "prsingle" && ( 
-              <div className="mb-3">
-              <label htmlFor="runNumSelect" className="block text-white">Select PR Number:</label>
+              <div className="bg-blue-500 p-2 rounded-xl">
               <select 
                 id="selectedrun"
                 className="px-1 h-fit rounded-lg"
                 onChange={(e) => setSelectedRun(e.target.value)}
-                defaultValue={runNumOptions.length > 0 ? runNumOptions[0] : ""} >
+                value={selectedRun} >
                 <option value="" disabled>Select a PR Number</option>
                 {runNumOptions.map(num => (
                   <option key={num} value={num}>{num}</option>
@@ -519,7 +520,7 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="mt-1 text-lg text-center">Total Rows: {rows.length}</div>
+        <div className="mt-1 text-lg text-center">Total Rows: {display === "prsingle" ? rowsSingle.length : rows.length}</div>
 
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
