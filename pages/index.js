@@ -84,9 +84,8 @@ export default function Home() {
     return filteredJobs.filter((job) => {
         const jobName = job.name.toLowerCase();
         return values.every((val) => {
-            const decodedValue = decodeURIComponent(val)
-                .replace("/", "").trim().toLowerCase();
-            return jobName.includes(decodedValue); // Directly check contains
+            const decodedValue = decodeURIComponent(val).toLowerCase();
+            return jobName.includes(decodedValue);
         });
     });
   };
@@ -96,9 +95,8 @@ export default function Home() {
     return filteredJobs.filter((job) => {
         const jobName = job.name.toLowerCase();
         return values.some((val) => {
-            const decodedValue = decodeURIComponent(val)
-                .replace("/", "").trim().toLowerCase();
-            return jobName.includes(decodedValue); // Directly check contains
+            const decodedValue = decodeURIComponent(val).toLowerCase();
+            return jobName.includes(decodedValue); 
         });
     });
   };
@@ -292,7 +290,7 @@ export default function Home() {
     // Prevent the default behavior so that we can keep search terms.
     e.preventDefault();
     const matchMode = e.target.matchMode.value;
-    const value = e.target.value.value.trim(); 
+    const value = e.target.value.value.trimEnd(); 
     if (value) {  
       // Append the new matchMode regardless of if search terms were kept.
       const path = new URLSearchParams();
@@ -301,9 +299,7 @@ export default function Home() {
         // If keepSearch is true, add existing parameters in the URL.
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.getAll("value").forEach((val) => {
-          const decodedValue = val
-            .replace("/", "").trim().toLowerCase();
-          path.append("value", decodedValue); 
+          path.append("value", val); 
         });
       }
       //Add the search term from the form and redirect. 
