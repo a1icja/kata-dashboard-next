@@ -35,7 +35,7 @@ const results_per_request = 100;
 // The last X closed PRs to retrieve
 const pr_count = 10; 
 // Count of the number of fetches
-// var fetch_count = 0;
+var fetch_count = 0;
 
 
 // Perform a github API request for the last pr_count closed PRs
@@ -166,6 +166,7 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
             // If an existing job includes the new job, the new job is a partial name.
             // Thus, we shouldn't add it
             // console.log("bad new: " + check["name"]);
+            shouldAdd = false;
           }else if(check["name"].includes(existing)){
             // If the new job includes existing job, the existing job is a partial name.
             // Delete it.
@@ -234,9 +235,11 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
       }
     }
     for (const check in check_reruns) { 
-      check_stats[check]["reruns"].push(check_reruns[check]);
-      check_stats[check]["rerun_results"].push(check_rerun_results[check]);
-      check_stats[check]["attempt_urls"].push(check__urls[check]);
+      if (check_stats[check]) {  // Only add if check_stats[check] exists
+        check_stats[check]["reruns"].push(check_reruns[check]);
+        check_stats[check]["rerun_results"].push(check_rerun_results[check]);
+        check_stats[check]["attempt_urls"].push(check__urls[check]);
+      }    
     }
   }
   return check_stats;

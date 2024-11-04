@@ -44,7 +44,7 @@ const main_branch_url =
 const jobs_per_request = 500;
 
 // Count of the number of fetches.
-// var fetch_count = 0;
+var fetch_count = 0;
 
 
 // Perform a github API request for workflow runs.
