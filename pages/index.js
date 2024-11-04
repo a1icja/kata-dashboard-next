@@ -356,8 +356,8 @@ export default function Home() {
   return (
     <>
       <title>Kata CI Dashboard</title>
-      <div className="text-center text-xs md:text-base">
-        <h1 className={"text-4xl mt-4 mb-6 underline text-inherit \
+      <div className="xl:text-center text-xs md:text-base">
+        <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
                         hover:text-blue-500"}>
           <a
             href={display === 'nightly' 
@@ -372,12 +372,12 @@ export default function Home() {
           </a>
         </h1>
 
-        <div className="xl:absolute l:flex mx-auto top-5 right-5 w-96 h-24">
+        <div className="absolute l:flex mx-auto top-5 right-5 w-96 h-24">
               <BarChart data={totalStats} />
         </div>
 
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pr-4 mx-auto mb-2 lg:ml-0">
+          <div className="pr-4 mb-2 space-x-2 mx-auto lg:ml-0">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -390,8 +390,8 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="flex flex-col lg:flex-row items-center lg:space-x-4 mx-auto lg:mr-0">
-            <form className="p-2 h-fit mb-2 bg-gray-700 border-2 border-gray-600 flex flex-row" onSubmit={(e) => handleForm(e)}> 
+          <div className="flex flex-col 2xl:flex-row items-center space-x-4 mx-auto xl:mr-0">
+            <form className="flex flex-row p-2 h-fit mb-2 bg-gray-700 border-2 border-gray-600" onSubmit={(e) => handleForm(e)}> 
               <div>
                 <select name="matchMode" className="px-1 h-fit rounded-lg">
                   <option value="or">Match Any</option>
@@ -403,7 +403,7 @@ export default function Home() {
               </div>
               <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
             </form>
-            <div className="flex mb-2 space-x2 flex-row lg:mr-0 lg:space-x-2">
+            <div className="flex flex-row mb-2 space-x-2 xl:mr-0">
               <button 
                 className={buttonClass()} 
                 onClick={() => clearSearch()}>
