@@ -15,7 +15,8 @@ export default function Home() {
   const [loading,        setLoading]        = useState(true);
   const [jobs,           setJobs]           = useState([]);
   const [checks,         setChecks]         = useState([]);
-  const [rows,           setRows]           = useState([]);
+  const [rowsNightly,    setRowsNightly]           = useState([]);
+  const [rowsPR,         setRowsPR]           = useState([]);
   const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
   const [keepSearch,     setKeepSearch]     = useState(true);
@@ -36,7 +37,8 @@ export default function Home() {
       let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       ).then((res) => res.json());
-      let prData = process.env.NODE_ENV === "development" ? PRData : {};
+      let prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json");
 
       const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
       setJobs(mapData(nightlyData));
@@ -104,10 +106,11 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     // Filter based on required tag.
-    let filteredJobs = display === "nightly" ? jobs : checks;
+    let filteredJobs = jobs;
     if (requiredFilter){
       filteredJobs = filteredJobs.filter((job) => job.required);
     }
+
     //Filter based on the URL. 
     const urlParams = new URLSearchParams(window.location.search);
     if(urlParams.get("matchMode") === "and"){
@@ -116,7 +119,7 @@ export default function Home() {
       filteredJobs = matchAny(filteredJobs, urlParams);
     }
     //Set the rows for the table.
-    setRows(
+    setRowsNightly(
       filteredJobs.map((job) => ({
         name          : job.name,
         runs          : job.runs,
@@ -129,7 +132,40 @@ export default function Home() {
       }))
     );
     setLoading(false);
-  }, [jobs, checks, requiredFilter, display]);
+  }, [jobs, requiredFilter]);
+
+
+  
+  useEffect(() => {
+    setLoading(true);
+    // Filter based on required tag.
+    let filteredChecks = checks
+    if (requiredFilter){
+      filteredChecks = filteredChecks.filter((check) => check.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredChecks = matchAll(filteredChecks, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredChecks = matchAny(filteredChecks, urlParams);
+    }
+    //Set the rows for the table.
+    setRowsPR(
+      filteredChecks.map((check) => ({
+        name          : check.name,
+        runs          : check.runs,
+        fails         : check.fails,
+        skips         : check.skips,
+        required      : check.required,
+        weather       : getWeatherIndex(check),
+        reruns        : check.reruns,
+        total_reruns  : check.reruns.reduce((total, r) => total + r, 0),
+      }))
+    );
+    setLoading(false);
+  }, [checks, requiredFilter]);
 
 
   // Close all rows on view switch. 
@@ -308,9 +344,54 @@ export default function Home() {
     }
   };
 
-  const renderTable = () => (
+  const renderNightlyTable = () => (
     <DataTable
-      value={rows}
+      value={rowsNightly}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage="No results found."
+    >
+      <Column expander/>
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate}
+        className="select-all"
+        sortable
+      />
+      <Column field = "required"      header = "Required" sortable/>
+      <Column 
+        field = "runs"   
+        header = "Runs"
+        className="whitespace-nowrap px-2"
+        // body={(data) => (
+        //   <span className="whitespace-nowrap">
+        //     <span className="font-bold">
+        //       {data.runs}
+        //     </span > 
+        //     {data.total_reruns > 0 
+        //       ? ` (${data.runs + data.total_reruns} total)` 
+        //       : ''}
+        //   </span>
+        // )} 
+        sortable />
+      <Column field = "total_reruns"  header = "Reruns"  sortable/>
+      <Column field = "fails"         header = "Fails"   sortable/>
+      <Column field = "skips"         header = "Skips"   sortable/>
+      <Column 
+        field = "weather"  
+        header = "Weather"  
+        body = {weatherTemplate} 
+        sortable />
+    </DataTable>
+  );
+
+  const renderPRTable = () => (
+    <DataTable
+      value={rowsPR}
       expandedRows={expandedRows}
       stripedRows
       rowExpansionTemplate={rowExpansionTemplate}
@@ -423,11 +504,11 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="mt-1 text-lg text-center">Total Rows: {rows.length}</div>
+        <div className="mt-1 text-lg text-center">Total Rows: {display === "nightly" ? rowsNightly.length : rowsPR.length}</div>
 
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
-          <div>{renderTable()}</div>
+          <div>{display === "nightly" ? renderNightlyTable() :renderPRTable()}</div>
         </main>
       </div>
     </>
