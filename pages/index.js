@@ -541,7 +541,7 @@ export default function Home() {
   );
 
   // Make a list of all unique run numbers in the check data.
-  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))];
+  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))].sort((a, b) => b - a);
     
   // Render table for prsingle view 
   const renderSingleViewTable = () => (

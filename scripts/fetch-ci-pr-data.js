@@ -33,7 +33,7 @@ const main_branch_url =
 // The number of checks to fetch from the github API on each paged request.
 const results_per_request = 100;
 // The last X closed PRs to retrieve
-const pr_count = 20; 
+const pr_count = 10; 
 // Count of the number of fetches
 var fetch_count = 0;
 
