@@ -12,7 +12,7 @@ import { basePath } from "../next.config.js";
 import BarChart from './BarChart'; 
 
 
-export default function Home() {
+export default function CoCo() {
   const [loading,        setLoading]        = useState(true);
   const [jobs,           setJobs]           = useState([]);
   const [checks,         setChecks]         = useState([]);
@@ -112,8 +112,10 @@ export default function Home() {
   // Filter and set the rows for Nightly view. 
   useEffect(() => {
     setLoading(true);
+    // Only show jobs with "CoCo"
+    let filteredJobs = jobs.filter((job) => job.name.includes("coco"));
+
     // Filter based on required tag.
-    let filteredJobs = jobs;
     if (requiredFilter){
       filteredJobs = filteredJobs.filter((job) => job.required);
     }
@@ -125,6 +127,8 @@ export default function Home() {
     }else if(urlParams.get("matchMode") === "or"){
       filteredJobs = matchAny(filteredJobs, urlParams);
     }
+
+    
     //Set the rows for the table.
     setRowsNightly(
       filteredJobs.map((job) => ({
@@ -144,8 +148,10 @@ export default function Home() {
   // Filter and set the rows for PR Checks view. 
   useEffect(() => {
     setLoading(true);
+    // Only show jobs with "CoCo"
+    let filteredChecks = checks.filter((check) => check.name.includes("coco"));
+
     // Filter based on required tag.
-    let filteredChecks = checks
     if (requiredFilter){
       filteredChecks = filteredChecks.filter((check) => check.required);
     }
@@ -175,10 +181,10 @@ export default function Home() {
 
   // Filter and set the rows for Single PR view. 
   useEffect(() => {
-    setLoading(true);
+    // Only show jobs with "CoCo"
+    let filteredData = checks.filter((check) => check.name.includes("coco"));
 
-    let filteredData = checks;
-    //Set the rows for the prsingle table
+    // Filter based on required tag.
     if (requiredFilter){
       filteredData = filteredData.filter((job) => job.required);
     }
@@ -413,7 +419,7 @@ export default function Home() {
       }
       //Add the search term from the form and redirect. 
       path.append("value", encodeURIComponent(value)); 
-      window.location.assign(`${basePath}/?${path.toString()}`);
+      window.location.assign(`${basePath}/coco/?${path.toString()}`);
     }
   };
 
@@ -425,26 +431,31 @@ export default function Home() {
       if (display === "prsingle" && selectedPR) {
         path.append("pr", selectedPR);
       }
-      window.location.assign(`${basePath}/?${path.toString()}`);
+      window.location.assign(`${basePath}/coco/?${path.toString()}`);
     }
   };
 
   // Update the URL on display change
   const updateUrl = (view, pr) => {
     const path = new URLSearchParams();
+
     path.append("display", view);
     // Add PR number Single PR view and a PR is provided
     if (view === "prsingle" && pr) {
       path.append("pr", pr);
     }
-    const urlParams = new URLSearchParams(window.location.search);
-    path.append("matchMode", urlParams.get("matchMode"));
+    
+    if(window.location.href.includes("matchMode")){
+      const urlParams = new URLSearchParams(window.location.search);
+    
+      path.append("matchMode", urlParams.get("matchMode"));
 
-    urlParams.getAll("value").forEach((val) => {
-      path.append("value", val); 
-    });
+      urlParams.getAll("value").forEach((val) => {
+        path.append("value", val); 
+      });
+    }
     // Update the URL without reloading
-    window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
+    window.history.pushState({}, '', `${basePath}/coco/?${path.toString()}`);
   };
   
 
@@ -582,29 +593,16 @@ export default function Home() {
   return (
     <>
 
-      <title>Kata CI Dashboard</title>
-     
-      <div className="text-xs md:text-base">
-        {/* <div className="mt-4"> */}
-          <a 
-            href={`${basePath}/coco`}
-            className="hover:text-blue-500 underline m-4 inline-block p-2 rounded-xl bg-blue-100"
-          > 
-            CoCo Dashboard
-          </a>
-        {/* </div> */}
-        <h1 className={"text-4xl ml-4 mb-6 underline text-center"}>
+      <title>Coco CI Dashboard</title>
+      <div className="text-center text-xs md:text-base">
+        <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
+                        hover:text-blue-500"}>
           <a
-            href={display === 'nightly' 
-              ? "https://github.com/kata-containers/kata-containers/" +
-                "actions/workflows/ci-nightly.yaml"
-              : "https://github.com/kata-containers/kata-containers/" +
-                "actions/workflows/ci-on-push.yaml"}
+            href={"https://github.com/confidential-containers"}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-blue-500"
           >
-            Kata CI Dashboard
+            Coco CI Dashboard
           </a>
         </h1>
 
