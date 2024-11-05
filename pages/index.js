@@ -22,7 +22,7 @@ export default function Home() {
   const [requiredFilter, setRequiredFilter] = useState(false);
   const [keepSearch,     setKeepSearch]     = useState(true);
   const [display,        setDisplay]        = useState("nightly");
-  const [selectedRun,    setSelectedRun]    = useState("");
+  const [selectedPR,    setSelectedPR]    = useState("");
 
 
   const icons = [
@@ -66,14 +66,32 @@ export default function Home() {
     ? getTotalStats(jobs) 
     : getTotalStats(checks);
 
-
-  // Clear the search parameters if they exist.
-  const clearSearch = () => {
-    const urlParts = window.location.href.split("?");
-    if(urlParts[1] !== undefined){
-      window.location.href = urlParts[0];
+  useEffect(() => {
+    const initialDisplay = new URLSearchParams(window.location.search).get("display");
+    if (initialDisplay) {
+      if(initialDisplay === "prsingle"){
+        const initialPR = new URLSearchParams(window.location.search).get("pr");
+        if(initialPR){
+          setSelectedPR(initialPR);
+        }
+      }
+      setDisplay(initialDisplay);
     }
-  }
+  }, []);
+  
+
+  // Clear the search parameters, but only if they exist.
+  const clearSearch = () => {
+    if(window.location.href.includes("?")){
+      const path = new URLSearchParams();
+      path.append("display", display);
+      if (display === "prsingle" && selectedPR) {
+        path.append("pr", selectedPR);
+      }
+      window.location.assign(`${basePath}/?${path.toString()}`);
+    }
+  };
+  
 
   const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
     ${active ? "border-blue-500 bg-blue-500 text-white" 
@@ -193,7 +211,7 @@ export default function Home() {
 
     filteredData = filteredData.map((check) => {
       // Only if the check include the run number, add it to the data. 
-      const index = check.run_nums.indexOf(Number(selectedRun));
+      const index = check.run_nums.indexOf(Number(selectedPR));
       return index !== -1
         ? {
             name: check.name,
@@ -206,7 +224,7 @@ export default function Home() {
   
     setRowsSingle(filteredData);
     setLoading(false);
-  }, [checks, requiredFilter, selectedRun]);
+  }, [checks, requiredFilter, selectedPR]);
 
   // Close all rows on view switch. 
   // Needed because if view is switched, breaks expanded row toggling.
@@ -371,6 +389,10 @@ export default function Home() {
     if (value) {  
       // Append the new matchMode regardless of if search terms were kept.
       const path = new URLSearchParams();
+      path.append("display", display);
+      if(display === "prsingle" && selectedPR){
+        path.append("pr", selectedPR);
+      }
       path.append("matchMode", matchMode);
       if (keepSearch) {
         // If keepSearch is true, add existing parameters in the URL.
@@ -488,7 +510,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage={selectedRun.length == 0 ? "Select a Pull Request above." : "No results found."}
+      emptyMessage={selectedPR.length == 0 ? "Select a Pull Request above." : "No results found."}
     >
       <Column expander />
       <Column
@@ -563,8 +585,8 @@ export default function Home() {
               <select 
                 id="selectedrun"
                 className="px-1 h-fit rounded-lg"
-                onChange={(e) => setSelectedRun(e.target.value)}
-                value={selectedRun} >
+                onChange={(e) => setSelectedPR(e.target.value)}
+                value={selectedPR} >
                   <option value="" disabled>Select PR</option>
                   {runNumOptions.map(num => (
                     <option key={num} value={num}>{num}</option>
