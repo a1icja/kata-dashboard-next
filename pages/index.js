@@ -600,9 +600,11 @@ export default function Home() {
           </a>
         </h1>
 
+        {display !== "prsingle" && ( 
         <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
               <BarChart data={totalStats} />
         </div>
+        )}
 
 
         <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
@@ -641,9 +643,9 @@ export default function Home() {
                     updateUrl("prsingle", e.target.value);
                   }}
                 value={selectedPR} >
-                  <option value="" disabled>Select PR</option>
+                  <option value="">Select PR</option>
                   {runNumOptions.map(num => (
-                    <option key={num} value={num}>{num}</option>
+                    <option key={num} value={num}>#{num}</option>
                   ))}
               </select>
               </div>
