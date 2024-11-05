@@ -368,7 +368,23 @@ export default function Home() {
   // Filter and set the rows for prsingle view. 
   useEffect(() => {
     setLoading(true);
-    const filteredData = checks.map((check) => {
+
+    let filteredData = checks;
+    //Set the rows for the prsingle table
+    if (requiredFilter){
+      filteredData = filteredData.filter((job) => job.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredData = matchAll(filteredData, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredData = matchAny(filteredData, urlParams);
+    }
+
+
+    filteredData = filteredData.map((check) => {
       // Only if the check include the run number, add it to the data. 
       const index = check.run_nums.indexOf(Number(selectedRun));
       return index !== -1
@@ -381,10 +397,11 @@ export default function Home() {
         : null;
     }).filter(Boolean); 
   
-    //Set the rows for the prsingle table
     setRowsSingle(filteredData);
     setLoading(false);
-  }, [selectedRun]);
+  }, [checks, requiredFilter, selectedRun]);
+
+
   
     
   // Render table for prsingle view 
