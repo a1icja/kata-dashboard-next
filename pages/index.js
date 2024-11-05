@@ -37,10 +37,10 @@ export default function Home() {
   // Fetch the data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
+      const nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       ).then((res) => res.json());
-      let prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
+      const prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json");
 
       const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
@@ -66,6 +66,8 @@ export default function Home() {
     ? getTotalStats(jobs) 
     : getTotalStats(checks);
 
+
+  // Set the display (including PR num for single view).
   useEffect(() => {
     const initialDisplay = new URLSearchParams(window.location.search).get("display");
     if (initialDisplay) {
@@ -78,28 +80,6 @@ export default function Home() {
       setDisplay(initialDisplay);
     }
   }, []);
-  
-
-  // Clear the search parameters, but only if they exist.
-  const clearSearch = () => {
-    if(window.location.href.includes("matchMode")){
-      const path = new URLSearchParams();
-      path.append("display", display);
-      if (display === "prsingle" && selectedPR) {
-        path.append("pr", selectedPR);
-      }
-      window.location.assign(`${basePath}/?${path.toString()}`);
-    }
-  };
-  
-
-  const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
-    ${active ? "border-blue-500 bg-blue-500 text-white" 
-      : "border-gray-300 bg-white hover:bg-gray-100"}`;
-
-  const tabClass = (active) => `tab md:px-4 px-2 py-2 border-b-2 focus:outline-none
-    ${active ? "border-blue-500 bg-gray-300" 
-      : "border-gray-300 bg-white hover:bg-gray-100"}`;
 
 
   // Filters the jobs s.t. all values must be contained in the name.
@@ -125,6 +105,7 @@ export default function Home() {
         });
     });
   };
+
 
   // Filter and set the rows for Nightly view. 
   useEffect(() => {
@@ -157,7 +138,6 @@ export default function Home() {
     );
     setLoading(false);
   }, [jobs, requiredFilter]);
-
 
   // Filter and set the rows for PR Checks view. 
   useEffect(() => {
@@ -217,7 +197,7 @@ export default function Home() {
             name: check.name,
             required: check.required,
             result: check.results[index],
-            reruns: check.reruns[index],
+            runs: check.reruns[index] + 1,
           }
         : null;
     }).filter(Boolean); 
@@ -225,6 +205,7 @@ export default function Home() {
     setRowsSingle(filteredData);
     setLoading(false);
   }, [checks, requiredFilter, selectedPR]);
+
 
   // Close all rows on view switch. 
   // Needed because if view is switched, breaks expanded row toggling.
@@ -251,12 +232,21 @@ export default function Home() {
     </div>
   );
 
+  
+  const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+  const tabClass = (active) => `tab md:px-4 px-2 py-2 border-b-2 focus:outline-none
+    ${active ? "border-blue-500 bg-gray-300" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+
   const nameTemplate = (rowData) => (
     <div className="cursor-pointer" onClick={() => toggleRow(rowData)}>
     <span style={{ userSelect: 'text' }}>{rowData.name}</span>
   </div>
   );
-
 
   const toggleRow = (rowData) => {
     setExpandedRows((prev) =>
@@ -544,8 +534,8 @@ export default function Home() {
         sortable
       />
       <Column
-        field="reruns"
-        header="Reruns"
+        field="runs"
+        header="Total Runs"
         sortable
       />
     </DataTable>
