@@ -82,7 +82,7 @@ export default function Home() {
 
   // Clear the search parameters, but only if they exist.
   const clearSearch = () => {
-    if(window.location.href.includes("?")){
+    if(window.location.href.includes("matchMode")){
       const path = new URLSearchParams();
       path.append("display", display);
       if (display === "prsingle" && selectedPR) {
@@ -381,7 +381,7 @@ export default function Home() {
   };
 
   // Apply search terms to the URL and reload the page. 
-  const handleForm = (e) => {
+  const handleSearch= (e) => {
     // Prevent the default behavior so that we can keep search terms.
     e.preventDefault();
     const matchMode = e.target.matchMode.value;
@@ -406,6 +406,19 @@ export default function Home() {
       window.location.assign(`${basePath}/?${path.toString()}`);
     }
   };
+
+  // Update the URL on display change
+  const updateUrl = (view, pr) => {
+    const path = new URLSearchParams();
+    path.append("display", view);
+    // Add PR number Single PR view and a PR is provided
+    if (view === "prsingle" && pr) {
+      path.append("pr", pr);
+    }
+    // Update the URL without reloading
+    window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
+  };
+  
 
   // Render table for nightly view.
   const renderNightlyTable = () => (
@@ -567,17 +580,26 @@ export default function Home() {
           <div className="space-x-2 pb-2 pr-3 mx-auto flex">
             <button 
               className={tabClass(display === "nightly")}
-              onClick={() => setDisplay("nightly")}>
+              onClick={() => {
+                setDisplay("nightly");
+                updateUrl("nightly");
+              }}>
               Nightly Jobs
             </button>
             <button 
               className={tabClass(display === "prchecks")}
-              onClick={() => setDisplay("prchecks")}>
+              onClick={() => {
+                setDisplay("prchecks");
+                updateUrl("prchecks");
+              }}>
               PR Checks
             </button>
             <button 
               className={tabClass(display === "prsingle")}
-              onClick={() => setDisplay("prsingle")}>
+              onClick={() => {
+                setDisplay("prsingle");
+                updateUrl("prsingle", selectedPR);
+              }}>
               Single PR
             </button>
             {display === "prsingle" && ( 
@@ -585,7 +607,10 @@ export default function Home() {
               <select 
                 id="selectedrun"
                 className="px-1 h-fit rounded-lg"
-                onChange={(e) => setSelectedPR(e.target.value)}
+                onChange={(e) => {
+                    setSelectedPR(e.target.value);
+                    updateUrl("prsingle", e.target.value);
+                  }}
                 value={selectedPR} >
                   <option value="" disabled>Select PR</option>
                   {runNumOptions.map(num => (
@@ -617,7 +642,7 @@ export default function Home() {
 
         <div className="flex flex-col items-center md:text-base text-xs">
           <div className="flex min-[1126px]:justify-end justify-center w-full"> 
-            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
+            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleSearch(e)}> 
               <div>
                 <label className="block text-white">Match Mode:</label>
                 <select name="matchMode" className="px-1 h-fit rounded-lg">
