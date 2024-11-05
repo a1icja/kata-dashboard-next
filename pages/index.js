@@ -436,12 +436,14 @@ export default function Home() {
     if (view === "prsingle" && pr) {
       path.append("pr", pr);
     }
-    const urlParams = new URLSearchParams(window.location.search);
-    path.append("matchMode", urlParams.get("matchMode"));
+    if(window.location.href.includes("matchMode")){
+      const urlParams = new URLSearchParams(window.location.search);
+      path.append("matchMode", urlParams.get("matchMode"));
 
-    urlParams.getAll("value").forEach((val) => {
-      path.append("value", val); 
-    });
+      urlParams.getAll("value").forEach((val) => {
+        path.append("value", val); 
+      });
+    }
     // Update the URL without reloading
     window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
   };
