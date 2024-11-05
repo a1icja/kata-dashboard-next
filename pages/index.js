@@ -7,6 +7,7 @@ import { OverlayPanel } from 'primereact/overlaypanel';
 
 import NightlyData  from "../data/job_stats.json";
 import PRData       from "../data/check_stats.json";
+import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
 import BarChart from './BarChart'; 
 
@@ -292,6 +293,10 @@ export default function Home() {
       attempt_urls: job.attempt_urls[idx],
     })); 
 
+    const maintainerData = MaintainerMapping.mappings
+      .filter(({ regex }) => new RegExp(regex).test(job.name))
+      .flatMap(match => match.owners);
+
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         <div className="flex flex-wrap gap-4">
@@ -357,15 +362,29 @@ export default function Home() {
             );
           })}
         </div>
-        <div>
-          <br/>Maintainer: <a 
-            href="https://github.com/sprt"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline">
-              Aurelien Bombo
-          </a>
+        <div className="mt-4 p-2 bg-gray-300 w-fit">
+          {maintainerData.length > 0 ? (
+            <div>
+              Maintainers:{" "}
+              {maintainerData.map((owner, index) => (
+                <span key={index}>
+                  <a 
+                    href={`https://github.com/${owner.github}`} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  >
+                    {owner.fullname}
+                  </a>
+                  {index < maintainerData.length - 1 && ", "}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div>No Maintainer Information Available</div>
+          )}
         </div>
+
       </div>
     );
   };
