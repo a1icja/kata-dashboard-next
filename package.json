@@ -3,18 +3,23 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development next dev",
+    "win-dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "chart.js": "^4.4.5",
+    "dotenv": "^16.4.5",
     "next": "^14.2.13",
     "primeflex": "^3.3.1",
     "primeicons": "^6.0.1",
     "primereact": "^10.8.3",
     "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
-    "react-transition-group": "^4.4.5"
+    "react-transition-group": "^4.4.5",
+    "yaml-loader": "^0.8.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",

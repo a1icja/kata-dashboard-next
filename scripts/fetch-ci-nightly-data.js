@@ -11,131 +11,126 @@
 //     entry is information about a job and how it has performed over the last
 //     few runs (e.g. pass or fail).
 // 
-// Count of API calls:
-//     1 for the batch of last 10 nightly run
-//    20 for 2 batches of >100 jobs for each of the 10 runs
-//     1 for the main branch details (for list of 'Required' jobs)
-//     1 for the last 10 closed pull requests
-//    20 for all 4 batches of checks (max of a hundred each) for each of the 5 PRs
-//     X Other?
-// TOTAL: 43?
-// LIMIT: 60 per hour  // curl https://api.github.com/rate_limit
-// TODO: Further explore using the GraphQL API, which permits more narrowly targeted queries 
+// To run locally:
+// node --require dotenv/config scripts/fetch-ci-nightly-data.js
+// .env file with:
+// NODE_ENV=development
+// TOKEN=token <GITHUB_PAT_OR_OTHER_VALID_TOKEN>
 
+// Set token used for making Authorized GitHub API calls.
+// In dev, set by .env file; in prod, set by GitHub Secret.
+const TOKEN = process.env.TOKEN;  
+  
 // Github API URL for the kata-container ci-nightly workflow's runs. This
-// will only get the most recent 10 runs ('page' is empty, and 'per_page=10').
-var ci_nightly_runs_url =
+// will only get the most recent 10 runs ('per_page=10').
+const total_runs = 10;
+
+const ci_nightly_runs_url =
   "https://api.github.com/repos/" +
   "kata-containers/kata-containers/actions/workflows/" +
-  "ci-nightly.yaml/runs?per_page=10";
-  // NOTE: For checks run on main after push/merge, do similar call with: payload-after-push.yaml
-
-// NOTE: pull_requests attribute often empty if commit/branch from a fork: https://github.com/orgs/community/discussions/25220
-// Current approach (there may be better alternatives) is to:
-//   1. retrieve the last 10 closed PRs
-//   2. fetch the checks for each PR (using the head commit SHA)
-var pull_requests_url =
-  "https://api.github.com/repos/" +
-  "kata-containers/kata-containers/pulls?state=closed&per_page=";
-var pr_checks_url =  // for our purposes, 'check' refers to a job in the context of a PR
-  "https://api.github.com/repos/" +
-  "kata-containers/kata-containers/commits/";  // will be followed by {commit_sha}/check-runs
-  // Max of 100 per page, w/ little *over* 300 checks total, so that's 40 calls total for 10 PRs
+  `ci-nightly.yaml/runs?per_page=${total_runs}`;
+  // NOTE: For checks run on main after push/merge,
+  // do similar call with: payload-after-push.yaml.
 
 // Github API URL for the main branch of the kata-containers repo.
 // Used to get the list of required jobs.
-var main_branch_url = 
-  "https://api.github.com/repos/" +
-  "kata-containers/kata-containers/branches/main";
-
-// Github API URL for the main branch of the kata-containers repo.
-// Used to get the list of required jobs.
-var main_branch_url = 
+const main_branch_url = 
   "https://api.github.com/repos/" +
   "kata-containers/kata-containers/branches/main";
 
 // The number of jobs to fetch from the github API on each paged request.
-var jobs_per_request = 100;
-// The last X closed PRs to retrieve
-var pr_count = 5; 
-// Complete list of jobs (from the CI nightly run)
-var job_names = new Set();
-// Count of the number of fetches
+const jobs_per_request = 100;
+
+// Count of the number of fetches.
 var fetch_count = 0;
+
 
 // Perform a github API request for workflow runs.
 async function fetch_workflow_runs() {
-  fetch_count++;
-  return fetch(ci_nightly_runs_url, {
+  const response = await fetch(ci_nightly_runs_url, {
     headers: {
       Accept: "application/vnd.github+json",
+      Authorization: `token ${TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
-  }).then(function (response) {
-    return response.json();
   });
-}
 
-// Perform a github API request for the last pr_count closed PRs
-async function fetch_pull_requests() {
+  if (!response.ok) {
+    throw new Error(`Failed to fetch workflow runs: ${response.status}`);
+  }
+
+  const json = await response.json();
   fetch_count++;
-  const prs_url = `${pull_requests_url}${pr_count}`;
-  return fetch(prs_url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  }).then(function (response) {
-    return response.json();
-  });
+  return await json;
 }
 
-// Perform a github API request for a list of "Required" jobs
+
+// Perform a github API request for a list of "Required" jobs.
 async function fetch_main_branch() {
-  return fetch(main_branch_url, {
+  const response = await fetch(main_branch_url, {
     headers: {
       Accept: "application/vnd.github+json",
+      Authorization: `token ${TOKEN}`,
       "X-GitHub-Api-Version": "2022-11-28",
     },
-  }).then(function (response) {
-    return response.json();
   });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch main branch: ${response.status}`);
+  }
+
+  const json = await response.json();
+  fetch_count++;
+  // const contexts = json?.protection?.required_status_checks?.contexts;
+  return json;
 }
 
-// Get job data about a workflow run
+
+// Extract list of required jobs. 
+// (i.e. main branch details: protection: required_status_checks: contexts)
+function get_required_jobs(main_branch) {
+  return main_branch["protection"]["required_status_checks"]["contexts"];
+}
+
+
+// Get job data about a workflow run.
 // Returns a map that has information about a run, e.g.
 //   ID assigned by github
 //   run number assigned by github
-//   'jobs' array, which has some details about each job from that run
+//   'jobs' array, which has some details about each job from that run.
 function get_job_data(run) {
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
-    fetch_count++;
-    var jobs_url =
-      run["jobs_url"] + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    return fetch(jobs_url, {
+    const jobs_url = `${run["jobs_url"]}?per_page=${jobs_per_request}&page=${which_page}`;
+    const response = await fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
+        Authorization: `token ${TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
-    }).then(function (response) {
-      return response.json();
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch jobs: ${response.status}`);
+    }
+
+    const json = await response.json();
+    fetch_count++;
+    return await json;
   }
 
   // Fetch the jobs for a run. Extract a few details from the response,
   // including the job name and whether it concluded successfully.
+
   function fetch_jobs(p) {
     return fetch_jobs_by_page(p).then(function (jobs_request) {
       for (const job of jobs_request["jobs"]) {
-        if (!job_names.has(job["name"])) {
-          job_names.add(job["name"])
-        };
         run_with_job_data["jobs"].push({
           name: job["name"],
           run_id: job["run_id"],
-          html_url: job["html_url"],
+          html_url: job["html_url"],      // URL to a job in a specific run
           conclusion: job["conclusion"],
+          reruns: job["run_attempt"] - 1,
         });
       }
       if (p * jobs_per_request >= jobs_request["total_count"]) {
@@ -145,14 +140,16 @@ function get_job_data(run) {
     });
   }
 
-  var run_with_job_data = {
+  const run_with_job_data = {
     id: run["id"],
     run_number: run["run_number"],
     created_at: run["created_at"],
+    previous_attempt_url: run["previous_attempt_url"],
+    html_url: run["html_url"],           // URL to the overall run 
     conclusion: null,
     jobs: [],
   };
-  if (run["status"] == "in_progress") {
+  if (run["status"] === "in_progress") {
     return new Promise((resolve) => {
       resolve(run_with_job_data);
     });
@@ -161,96 +158,176 @@ function get_job_data(run) {
   return fetch_jobs(1);
 }
 
-function get_check_data(pr) {
-  // Perform a github API request for a list of commits for a PR (takes in the PR's head commit SHA)
-  async function fetch_checks_by_page(which_page) {
-    fetch_count++;
-    var checks_url = 
-      pr_checks_url + prs_with_check_data["commit_sha"] + "/check-runs" + "?per_page=" + jobs_per_request + "&page=" + which_page;
-    return fetch(checks_url, {  
+
+// Using the previous URL, fetch the json to get the next URL.        
+async function fetch_previous_attempt_url(prev_url) {   
+  const response = await fetch(prev_url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `token ${TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch attempt url: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  fetch_count++;
+  return await json;
+}
+
+
+// Using the previous URL, look at the json with jobs.
+// This will have the results for each job for a previous run. 
+async function fetch_attempt_results(prev_url) {
+  // Initialize an array to hold all jobs.
+  const result = []; 
+
+  // Fetch from pages until its processed all jobs.
+  let p = 1; 
+  while (true) {
+    const jobs_url = `${prev_url}/jobs?per_page=500&page=${p}`;
+    const response = await fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
+        Authorization: `token ${TOKEN}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
-    }).then(function (response) {
-      return response.json();
     });
-  }
 
-  // Fetch the checks for a PR.
-  function fetch_checks(p) {
-    if (p > 60) {
-      throw new Error(`Attempting to make too many API calls: ${p}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch attempt results: ${response.statusText}`);
     }
-    return fetch_checks_by_page(p)
-    .then(function (checks_request) {
-      // console.log('checks_request', checks_request);
-      for (const check of checks_request["check_runs"]) {
-        // NOTE: For now, excluding checks that are not also run in CI Nightly
-        if (job_names.has(check["name"])) {  
-          prs_with_check_data["checks"].push({
-            name: check["name"],
-            conclusion: check["conclusion"]
-          });
+
+    const json = await response.json();
+    fetch_count++;
+    result.push(...json.jobs);
+
+    // Break we no have more pages to fetch.
+    if (p * jobs_per_request >= json.total_count) {
+      break;
+    }
+    p++; 
+  }
+  return { jobs: result };
+}
+
+
+// Get the attempt results for reruns for each job in each run.
+// This constructs the field "attempt_results" and "rerun_urls" for each job.
+// Results will have the result for each rerun. If no reruns, it's null.
+async function get_atttempt_results(runs_with_job_data){
+  for (const run of runs_with_job_data) {
+    var prev_url = run["previous_attempt_url"];
+    // If the run has a previous attempt (prev_url isn't null), process it. 
+    while (prev_url !== null){
+      // Get json with results for the run, which has job information.
+      const json1 = await fetch_attempt_results(prev_url); 
+      if(json1 === null){
+        throw new Error("json1 empty");
+      }  
+
+      // For each job in the run, append the result.
+      for (const job of run["jobs"]) {
+        // Find the job in the json that matches the current job name.
+        const match = json1.jobs.find((j) => j.name === job["name"]);
+
+        // Initialize structures if not initialized before.
+        job["attempt_results"] ??= [];
+        job["rerun_urls"] ??= [];
+
+        if (match) {
+          // Add the URLs for all attempts.
+          job["rerun_urls"].push(match.html_url);
+
+          // Find the last step to see the final conclusion for the job.
+          const completed = match.steps.find((step) => 
+                                                step.name === "Complete job");
+          // If there's a conclusion, add it to the job's attempt_results.
+          if(completed){
+            if (completed.conclusion != "success") {
+              if (completed.conclusion == "skipped") {
+                job["attempt_results"].push("Skip");
+              } else {
+                // Failed or cancelled.
+                job["attempt_results"].push("Fail");
+              }
+            } else {
+              job["attempt_results"].push("Pass");
+            }
+          } else {
+            // Never completed.
+            job["attempt_results"].push("Fail");
+          }
+        } else {
+          // Not Ran.
+          job["rerun_urls"].push(null);
+          job["attempt_results"].push("Skip");
         }
       }
-      if (p * jobs_per_request >= checks_request["total_count"]) {
-        return prs_with_check_data;
+      // Get json with next attempt URL.
+      const json2 = await fetch_previous_attempt_url(prev_url);
+      if(json2 === null){
+        throw new Error("json2 empty");
       }
-      return fetch_checks(p + 1);
-    })
-    .catch(function (error) {
-      console.error("Error fetching checks:", error);
-      throw error;
-    });
+      prev_url = json2.previous_attempt_url
+    }
   }
-
-  // Extract list of objects with PR commit SHAs, PR URLs, and PR number (i.e. id)
-  var prs_with_check_data = {
-    html_url: pr["html_url"],  // link to PR page
-    number: pr["number"],  // PR number (used as PR id); displayed on dashboard
-    commit_sha: pr["head"]["sha"],  // For getting checks run on PR branch
-    // commit_sha: pr["merge_commit_sha"],  // For getting checks run on main branch after merge
-    // NOTE: using for now b/c we'll be linking to the PR page, where these checks are listed...
-    checks: [],  // will be populated later with fetch_checks
-  };
-
-  return fetch_checks(1);
+  return runs_with_job_data;
 }
 
-// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
-function get_required_jobs(main_branch) {
-  var required_jobs = main_branch["protection"]["required_status_checks"]["contexts"];
-  // console.log('required jobs: ', required_jobs);
-  return required_jobs;
+
+// Add rerun results to fails/skips.
+function count_stats(result, job_stat){
+  if (result === "Skip") {
+    job_stat["skips"] += 1;
+  } else if (result === "Fail"){
+    job_stat["fails"] += 1;
+  }
+  return job_stat;
 }
+
 
 // Calculate and return job stats across all runs
-function compute_job_stats(runs_with_job_data, prs_with_check_data, required_jobs) {
-  var job_stats = {};
+function compute_job_stats(runs_with_job_data, required_jobs) {
+  const job_stats = {};
   for (const run of runs_with_job_data) {
     for (const job of run["jobs"]) {
       if (!(job["name"] in job_stats)) {
-        job_stats[job["name"]] = {
-          runs: 0, // e.g. 10, if it ran 10 times
-          fails: 0, // e.g. 3, if it failed 3 out of 10 times
-          skips: 0, // e.g. 7, if it got skipped the other 7 times
-          urls: [], // ordered list of URLs associated w/ each run
-          results: [], // an array of strings, e.g. 'Pass', 'Fail', ...
-          run_nums: [], // ordered list of github-assigned run numbers
-
-          pr_runs: 0,
-          pr_fails: 0,
-          pr_skips: 0,
-          pr_urls: [], // list of PR URLs that this job is associated with
-          pr_results: [], // list of job statuses for the PRs in which the job was run
-          pr_nums: [], // list of PR numbers that this job is associated with
-        };
+          job_stats[job["name"]] = {
+            runs: 0,            // e.g. 10, if it ran 10 times
+            fails: 0,           // e.g. 3, if it failed 3 out of 10 times
+            skips: 0,           // e.g. 7, if it got skipped the other 7 times
+            urls: [],           // ordered list of URLs to each run
+            results: [],        // an array of strings, e.g. 'Pass', 'Fail', ...
+            run_nums: [],       // ordered list of github-assigned run numbers
+            reruns: [],         // the total number of times the test was rerun
+            rerun_results: [],  // an array of strings, e.g. 'Pass', for reruns
+            attempt_urls: [],   // ordered list of URLs to each job in a specific run
+          };
       }
       var job_stat = job_stats[job["name"]];
       job_stat["runs"] += 1;
       job_stat["run_nums"].push(run["run_number"]);
-      job_stat["urls"].push(job["html_url"]);
+      job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["reruns"].push(job["reruns"]);
+      job_stat["rerun_results"].push(job["attempt_results"]);
+      job_stat["urls"].push(run["html_url"]);
+
+      // Always add the URL from the latest attempt.
+      const jobURLs = [job["html_url"]];
+      if(job["attempt_results"]){
+        // Recompute the fails/skips for the job with the rerun results. 
+        job["attempt_results"].forEach(result => {
+          job_stat = count_stats(result, job_stat);
+        });
+        // Add the rerun URLs if they exist.
+        jobURLs.push(...job["rerun_urls"]);
+      }
+      job_stat["attempt_urls"].push(jobURLs);
+
       if (job["conclusion"] != "success") {
         if (job["conclusion"] == "skipped") {
           job_stat["skips"] += 1;
@@ -262,70 +339,42 @@ function compute_job_stats(runs_with_job_data, prs_with_check_data, required_job
         }
       } else {
         job_stat["results"].push("Pass");
-      }
-      job_stat["required"] = required_jobs.includes(job["name"]);
-    }
-  }
-  for (const pr of prs_with_check_data) {
-    for (const check of pr["checks"]) {
-      if ((check["name"] in job_stats)) {
-        var job_stat = job_stats[check["name"]];
-        job_stat["pr_runs"] += 1;
-        job_stat["pr_urls"].push(pr["html_url"])
-        job_stat["pr_nums"].push(pr["number"])
-        if (check["conclusion"] != "success") {
-          if (check["conclusion"] == "skipped") {
-            job_stat["pr_skips"] += 1;
-            job_stat["pr_results"].push("Skip");
-          } else {
-            // failed or cancelled
-            job_stat["pr_fails"] += 1;
-            job_stat["pr_results"].push("Fail");
-          }
-        } else {
-          job_stat["pr_results"].push("Pass");
-        }
-      }
+      } 
     }
   }
   return job_stats;
 }
 
+
 async function main() {
   // Fetch recent workflow runs via the github API
-  var workflow_runs = await fetch_workflow_runs();
+  const workflow_runs = await fetch_workflow_runs();
 
   // Fetch required jobs from main branch
-  var main_branch = await fetch_main_branch();
-  var required_jobs = get_required_jobs(main_branch);
+  const main_branch = await fetch_main_branch();
+  const required_jobs = get_required_jobs(main_branch);
 
   // Fetch job data for each of the runs.
   // Store all of this in an array of maps, runs_with_job_data.
-  var promises_buf = [];
+  const promises_buf = [];
   for (const run of workflow_runs["workflow_runs"]) {
     promises_buf.push(get_job_data(run));
   }
-  runs_with_job_data = await Promise.all(promises_buf);
-
-  // Fetch recent pull requests via the github API
-  var pull_requests = await fetch_pull_requests();
-
-  // Fetch last pr_count closed PRs
-  // Store all of this in an array of maps, prs_with_check_data.
-  var promises_buffer = [];
-  for (const pr of pull_requests) {
-    promises_buffer.push(get_check_data(pr));
-  }
-  prs_with_check_data = await Promise.all(promises_buffer);
+  var runs_with_job_data = await Promise.all(promises_buf);
+  
+  // Get the attempt_results for each job.
+  runs_with_job_data = await get_atttempt_results(runs_with_job_data)
 
   // Transform the raw details of each run and its jobs' results into a
   // an array of just the jobs and their overall results (e.g. pass or fail,
   // and the URLs associated with them).
-  var job_stats = compute_job_stats(runs_with_job_data, prs_with_check_data, required_jobs);
+  const job_stats = compute_job_stats(runs_with_job_data, required_jobs);
 
   // Write the job_stats to console as a JSON object
   console.log(JSON.stringify(job_stats));
-  // console.log(JSON.stringify(required_jobs));
+
+  // Print total number of jobs
+  // console.log(`\n\nTotal job count: ${Object.keys(job_stats).length}\n\n`);
 }
 
 

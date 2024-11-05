@@ -1,18 +1,30 @@
-import { useEffect, useState } from "react";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-// import localData from "../data/job_stats.json";
+
+import { DataTable } from "primereact/datatable";
+import { Column }    from "primereact/column";
+import { OverlayPanel } from 'primereact/overlaypanel';
+
+import NightlyData  from "../data/job_stats.json";
+import PRData       from "../data/check_stats.json";
+import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
+import BarChart from './BarChart'; 
+
 
 export default function Home() {
-  const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [expandedRows, setExpandedRows] = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [jobs,           setJobs]           = useState([]);
+  const [checks,         setChecks]         = useState([]);
+  const [rowsSingle,     setRowsSingle]     = useState([]);
+  const [rowsNightly,    setRowsNightly]           = useState([]);
+  const [rowsPR,         setRowsPR]           = useState([]);
+  const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [keepSearch, setKeepSearch] = useState(false);
-  const [display, setDisplay] = useState("nightly");
+  const [keepSearch,     setKeepSearch]     = useState(true);
+  const [display,        setDisplay]        = useState("nightly");
+  const [selectedPR,    setSelectedPR]    = useState("");
+
 
   const icons = [
     "sunny.svg",
@@ -22,453 +34,672 @@ export default function Home() {
     "stormy.svg",
   ];
 
+
+  // Fetch the data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      let data = {};
-      // if (process.env.NODE_ENV === "development") {
-        // data = localData;
-      // } else {
-      const response = await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next" +
-        "/refs/heads/latest-dashboard-data/data/job_stats.json"
-      );
-      data = await response.json();
-      // }
+      const nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+      ).then((res) => res.json());
+      const prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json");
 
-      try {
-        const jobData = Object.keys(data).map((key) => {
-          const job = data[key];
-          return { name: key, ...job };
-        });
-        setJobs(jobData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
+      const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
+      setJobs(mapData(nightlyData));
+      setChecks(mapData(prData));
+      setLoading(false);
     };
-
     fetchData();
   }, []);
 
-  const testRules  = (name, parts) => {
-    for(let i=2; i<parts.length; i++){
-      // Rule = matchMode&value/
-      const rule= parts[i].split('=')[1];
-  
-      const matchMode = rule.split('&')[0];
-      const value = rule.split('&')[1];
 
-      // Remove trailing '/' from search and trim.
-      const decoded = (
-        decodeURIComponent(value)
-        .replace('/', '')
-      ).trim().toLowerCase();
+  // Get the bar chart statistics. 
+  const getTotalStats = (data) => {
+    return data.reduce((acc, job) => {
+      acc.runs  += job.runs;
+      acc.fails += job.fails;
+      acc.skips += job.skips;
+      return acc;
+    }, { runs: 0, fails: 0, skips: 0 });
+  };
 
-      if (matchMode === 'contains'){
-        if(name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'notContains'){
-        if(!name.includes(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'equals'){
-        if(name === decoded){
-          return true;
-        }
-      }else if(matchMode === 'notEquals'){
-        if(name !== decoded){
-          return true;
-        }
-      }else if(matchMode === 'startsWith'){
-        if(name.startsWith(decoded)){
-          return true;
-        }
-      }else if(matchMode === 'endsWith'){
-        if(name.endsWith(decoded)){
-          return true;
+  const totalStats = display === "nightly" 
+    ? getTotalStats(jobs) 
+    : getTotalStats(checks);
+
+
+  // Set the display (including PR num for single view).
+  useEffect(() => {
+    const initialDisplay = new URLSearchParams(window.location.search).get("display");
+    if (initialDisplay) {
+      if(initialDisplay === "prsingle"){
+        const initialPR = new URLSearchParams(window.location.search).get("pr");
+        if(initialPR){
+          setSelectedPR(initialPR);
         }
       }
+      setDisplay(initialDisplay);
     }
-    // Only return false if it satifies none of the rules. 
-    return false;
-  }
+  }, []);
 
+
+  // Filters the jobs s.t. all values must be contained in the name.
+  const matchAll = (filteredJobs, urlParams) => {
+    const values = urlParams.getAll("value");
+    return filteredJobs.filter((job) => {
+        const jobName = job.name.toLowerCase();
+        return values.every((val) => {
+            const decodedValue = decodeURIComponent(val).toLowerCase();
+            return jobName.includes(decodedValue);
+        });
+    });
+  };
+  
+  // Filters the jobs s.t. at least one value must be contained in the name.
+  const matchAny = (filteredJobs, urlParams) => {
+    const values = urlParams.getAll("value");
+    return filteredJobs.filter((job) => {
+        const jobName = job.name.toLowerCase();
+        return values.some((val) => {
+            const decodedValue = decodeURIComponent(val).toLowerCase();
+            return jobName.includes(decodedValue); 
+        });
+    });
+  };
+
+
+  // Filter and set the rows for Nightly view. 
+  useEffect(() => {
+    setLoading(true);
+    // Filter based on required tag.
+    let filteredJobs = jobs;
+    if (requiredFilter){
+      filteredJobs = filteredJobs.filter((job) => job.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredJobs = matchAll(filteredJobs, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredJobs = matchAny(filteredJobs, urlParams);
+    }
+    //Set the rows for the table.
+    setRowsNightly(
+      filteredJobs.map((job) => ({
+        name          : job.name,
+        runs          : job.runs,
+        fails         : job.fails,
+        skips         : job.skips,
+        required      : job.required,
+        weather       : getWeatherIndex(job),
+        reruns        : job.reruns,
+        total_reruns  : job.reruns.reduce((total, r) => total + r, 0),
+      }))
+    );
+    setLoading(false);
+  }, [jobs, requiredFilter]);
+
+  // Filter and set the rows for PR Checks view. 
+  useEffect(() => {
+    setLoading(true);
+    // Filter based on required tag.
+    let filteredChecks = checks
+    if (requiredFilter){
+      filteredChecks = filteredChecks.filter((check) => check.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredChecks = matchAll(filteredChecks, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredChecks = matchAny(filteredChecks, urlParams);
+    }
+    //Set the rows for the table.
+    setRowsPR(
+      filteredChecks.map((check) => ({
+        name          : check.name,
+        runs          : check.runs,
+        fails         : check.fails,
+        skips         : check.skips,
+        required      : check.required,
+        weather       : getWeatherIndex(check),
+        reruns        : check.reruns,
+        total_reruns  : check.reruns.reduce((total, r) => total + r, 0),
+      }))
+    );
+    setLoading(false);
+  }, [checks, requiredFilter]);
+
+  // Filter and set the rows for Single PR view. 
   useEffect(() => {
     setLoading(true);
 
-    // Filter based on required tag.
-    let filteredJobs = jobs;
-    if (requiredFilter) {
-      filteredJobs = jobs.filter((job) => job.required);
+    let filteredData = checks;
+    //Set the rows for the prsingle table
+    if (requiredFilter){
+      filteredData = filteredData.filter((job) => job.required);
     }
 
-    // Get the current URL
-    const url = window.location.href;
-
-    // Pattern: /?operator/?search=matchMode&value/?search=matchMode&value
-    // Thus, split on ? to isolate each area
-    const parts = url.split('?');
-
-    // For the operator, and = match all / or = match any
-    if(parts[1] === "and/"){
-      // Iterate through ?search=matchMode&value/
-      for(let i=2; i<parts.length; i++){
-        // Rule = matchMode&value/
-        const rule= parts[i].split('=')[1];
-        
-        const matchMode = rule.split('&')[0];
-        const value = rule.split('&')[1];
-
-        // Remove trailing '/' from search abd trim.
-        const decoded = (
-          decodeURIComponent(value)
-          .replace('/', '')
-        ).trim().toLowerCase();
-
-        // Not case sensitive now, remove toLowerCase to make it so. 
-        if (matchMode === 'contains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().includes(decoded)
-        );
-        }else if(matchMode === 'notContains'){
-          filteredJobs = filteredJobs.filter((job) =>
-            !job.name.toLowerCase().includes(decoded)
-          );
-        }else if(matchMode === 'equals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() === decoded
-          );
-        }else if(matchMode === 'notEquals'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase() !== decoded
-          );
-        }else if(matchMode === 'startsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().startsWith(decoded)
-          );
-        }else if(matchMode === 'endsWith'){
-          filteredJobs = filteredJobs.filter((job) =>
-            job.name.toLowerCase().endsWith(decoded)
-          );
-        }
-      }
-    } else if(parts[1] === "or/"){
-      filteredJobs = filteredJobs.filter((job) =>
-        testRules(job.name.toLowerCase(), parts)
-      );
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredData = matchAll(filteredData, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredData = matchAny(filteredData, urlParams);
     }
-    
-    // Create rows to set into table.
-    const filteredRows = filteredJobs.map((job) => ({
-      name: job.name,
-      runs: job.runs,
-      fails: job.fails,
-      skips: job.skips,
-      required: job.required,
-      pr_runs: job.pr_runs,
-      pr_fails: job.pr_fails,
-      pr_skips: job.pr_skips,
-      weather: getWeatherIndex(job),
-    }));
-    setRows(filteredRows);
-    setLoading(false);
-  }, [jobs, requiredFilter, display]);
 
-  // Collapse rows if display changes
-  useEffect(() => {
-    setExpandedRows([]);
-  }, [display]);
-
+    filteredData = filteredData.map((check) => {
+      // Only if the check include the run number, add it to the data. 
+      const index = check.run_nums.indexOf(Number(selectedPR));
+      return index !== -1
+        ? {
+            name: check.name,
+            required: check.required,
+            result: check.results[index],
+            runs: check.reruns[index] + 1,
+          }
+        : null;
+    }).filter(Boolean); 
   
+    setRowsSingle(filteredData);
+    setLoading(false);
+  }, [checks, requiredFilter, selectedPR]);
+
+
+  // Close all rows on view switch. 
+  // Needed because if view is switched, breaks expanded row toggling.
+  useEffect(() => {
+    setExpandedRows([])
+  }, [display]); 
+
+
   const getWeatherIndex = (stat) => {
-    let fail_rate = 0;
-    if (display === "nightly") {
-      fail_rate = (stat["fails"] + stat["skips"]) / stat["runs"];
-    } else {
-      fail_rate = (stat["pr_fails"] + stat["pr_skips"]) / stat["pr_runs"];
-    }
-    // e.g. failing 3/9 runs is .33, or idx=1
-    var idx = Math.floor((fail_rate * 10) / 2); 
-    if (idx == icons.length) {
-      // edge case: if 100% failures, then we go past the end of icons[]
-      // back the idx down by 1
-      console.assert(fail_rate == 1.0);
-      idx -= 1;
-    }
-
-    // This error checks if there are zero runs.
-    // Currently, will display stormy weather.
-    if(isNaN(idx)){
-      idx = 4;
-    }
-    return idx;
+    const failRate = (stat.fails + stat.skips) / 
+                     (stat.runs + stat.reruns.reduce((total, r) =>
+                      total + r, 0));
+    let idx = Math.floor((failRate * 10) / 2);
+    if (idx === icons.length) idx -= 1;
+    return isNaN(idx) ? 4 : idx;
   };
 
-  const getWeatherIcon = (stat) => {
-    const idx = getWeatherIndex(stat);
-    return icons[idx];
-  };
-
-
-  const weatherTemplate = (data) => {
-    const icon = getWeatherIcon(data);
-    return (
-      <div>
-        <Image
-          src={`${basePath}/${icon}`}
-          alt="weather"
-          width={32}
-          height={32}
-          // priority
-        />
-      </div>
-    );
-  };
-
-  const requiredCheckbox = (
+  const weatherTemplate = (data) => (
     <div>
-      <input
-        type="checkbox"
-        checked={requiredFilter === true}
-        onChange={(e) => setRequiredFilter(e.target.checked)}
-        style={{ height: "1rem", width: "1rem" }}
-      />
+      <Image
+        src={`${basePath}/${icons[getWeatherIndex(data)]}`}
+        alt="weather" width={32}
+        height={32}/>
     </div>
   );
 
+  
+  const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+  const tabClass = (active) => `tab md:px-4 px-2 py-2 border-b-2 focus:outline-none
+    ${active ? "border-blue-500 bg-gray-300" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
+
+  const nameTemplate = (rowData) => (
+    <div className="cursor-pointer" onClick={() => toggleRow(rowData)}>
+    <span style={{ userSelect: 'text' }}>{rowData.name}</span>
+  </div>
+  );
+
   const toggleRow = (rowData) => {
-    const isRowExpanded = expandedRows.includes(rowData);
-
-    let updatedExpandedRows;
-    if (isRowExpanded) {
-      updatedExpandedRows = expandedRows.filter((r) => r !== rowData);
-    } else {
-      updatedExpandedRows = [...expandedRows, rowData];
-    }
-
-    setExpandedRows(updatedExpandedRows);
-  };
-
-  // Template for rendering the Name column as a clickable item
-  const nameTemplate = (rowData) => {
-    return (
-      <span onClick={() => toggleRow(rowData)} style={{ cursor: "pointer" }}>
-        {rowData.name}
-      </span>
+    setExpandedRows((prev) =>
+      prev.includes(rowData) 
+        ? prev.filter((r) => r !== rowData) 
+        : [...prev, rowData]
     );
   };
 
+  const overlayRefs = useRef([]);
+
   const rowExpansionTemplate = (data) => {
-    const job = jobs.find((job) => job.name === data.name);
+    const job = (display === "nightly" 
+      ? jobs 
+      : checks).find((job) => job.name === data.name);
+  
+    if (!job) return (
+        <div className="p-3 bg-gray-100">
+          No data available for this job.
+        </div>); 
 
-    // Prepare run data
-    const runs = [];
-    for (let i = 0; i < job.runs; i++) {
-      runs.push({
-        run_num: job.run_nums[i],
-        result: job.results[i],
-        url: job.urls[i],
-      });
-    }
+    const getRunStatusIcon = (runs) => {
+      if (Array.isArray(runs)) {
+        const allPass = runs.every(run => run === "Pass");
+        const allFail = runs.every(run => run === "Fail");
 
-    const prs = [];
-    job.pr_nums.forEach((pr_num, index) => {
-      const pr_url = job.pr_urls[index];
-      const pr_res = job.pr_results[index];
-
-      if (!prs.some((pr) => pr.num === pr_num && pr.url === pr_url)) {
-        prs.push({
-          num: pr_num,
-          url: pr_url,
-          res: pr_res,
-        });
+        if (allPass) {return "✅";}
+        if (allFail) {return "❌";}
+      } else if (runs === "Pass") {
+        return "✅";
+      } else if (runs === "Fail") {
+        return "❌";
       }
-    });
+      return "⚠️";  // return a warning if a mix of results
+    };
+
+    const runEntries = job.run_nums.map((run_num, idx) => ({
+      run_num,
+      result: job.results[idx],
+      reruns: job.reruns[idx],
+      rerun_result: job.rerun_results[idx],
+      url: job.urls[idx],
+      attempt_urls: job.attempt_urls[idx],
+    })); 
+
+    const maintainerData = MaintainerMapping.mappings
+      .filter(({ regex }) => new RegExp(regex).test(job.name))
+      .flatMap(match => match.owners);
 
     return (
-      <div
-        key={`${job.name}-runs`}
-        className="p-3 bg-gray-100"
-        style={{ marginLeft: "4.5rem", marginTop: "-2.0rem" }}
-      >
-        {display === "nightly" && (
-          <div>
-            {runs.length > 0  ? (
-              runs.map((run) => {
-                const emoji =
-                  run.result === "Pass"
-                    ? "✅"
-                    : run.result === "Fail"
-                    ? "❌"
-                    : "⚠️";
-                return (
-                  <span key={`${job.name}-runs-${run.run_num}`}>
-                    <a href={run.url}>
-                      {emoji} {run.run_num}
-                    </a>
-                    &nbsp;&nbsp;&nbsp;&nbsp;
+      <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
+        <div className="flex flex-wrap gap-4">
+          {runEntries.map(({
+            run_num, 
+            result, 
+            url, 
+            reruns, 
+            rerun_result, 
+            attempt_urls 
+          }, idx) => {
+            const allResults = rerun_result 
+              ?  [result, ...rerun_result] 
+              : [result];
+
+            const runStatuses = allResults.map((result, idx) => 
+              `${allResults.length - idx}. ${result === 'Pass' 
+                ? '✅ Success' 
+                : result === 'Fail' 
+                  ? '❌ Fail' 
+                  : '⚠️ Warning'}`);
+
+            // IDs can't have a '/'...
+            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, '');
+            const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
+            overlayRefs.current[badgeId] = overlayRefs.current[badgeId] 
+              || React.createRef();
+
+            return (
+              <div key={run_num} className="flex">
+                <div key={idx} className="flex items-center">
+                  {/* <a href={url} target="_blank" rel="noopener noreferrer"> */}
+                  <a href={attempt_urls[0]} target="_blank" rel="noopener noreferrer">
+                    {getRunStatusIcon(allResults)} {run_num}
+                  </a>
+                </div>
+                {reruns > 0 &&(
+                  <span className="p-overlay-badge">
+                    <sup  className="text-xs font-bold align-super ml-1"
+                          onMouseEnter={(e) => 
+                            overlayRefs.current[badgeId].current.toggle(e)}>
+                      {reruns+1}
+                    </sup>
+                    <OverlayPanel ref={overlayRefs.current[badgeId]} dismissable
+                    onMouseLeave={(e) => 
+                      overlayRefs.current[badgeId].current.toggle(e)}>
+                    <ul className="bg-white border rounded shadow-lg p-2">
+                      {runStatuses.map((status, index) => (
+                        <li key={index} className="p-2 hover:bg-gray-200">
+                          <a 
+                            href={attempt_urls[index] || `${url}/attempts/${index}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer">
+                              {status}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </OverlayPanel>
                   </span>
-                );
-            })) : (
-              <div>No Nightly Runs associated with this job</div>
-            )}  
-          </div>
-        )}
-        {display === "prchecks" && (
-          <div>
-            {prs.length > 0 ? (
-              prs.map((pr) => {
-                const emoji =
-                  pr.res === "Pass" ? "✅" : pr.res === "Fail" ? "❌" : "⚠️";
-                return (
-                  <span key={`${job.name}-prs-${pr.num}`}>
-                    <a href={pr.url}>
-                      {emoji} PR #{pr.num}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    </a>
-                  </span>
-                );
-              })
-            ) : (
-              <div>No PRs associated with this job</div>
-            )}
-          </div>
-        )}
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 p-2 bg-gray-300 w-fit">
+          {maintainerData.length > 0 ? (
+            <div>
+              Maintainers:{" "}
+              {maintainerData.map((owner, index) => (
+                <span key={index}>
+                  <a 
+                    href={`https://github.com/${owner.github}`} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  >
+                    {owner.fullname}
+                  </a>
+                  {index < maintainerData.length - 1 && ", "}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div>No Maintainer Information Available</div>
+          )}
+        </div>
+
       </div>
     );
   };
 
-  const handleFilterApply = (e) => {
-    // If the first value isn't null, we must apply the search.
-    if (e.constraints.constraints[0].value) {
-      // Start the path with /?operator   (and/or)
-      
-      // Will always use the new operator.
-      let path = `/?${encodeURIComponent(e.constraints.operator)}`; 
-
-      // If checked, it will keep the search rules from the URL.
-      if(keepSearch){
-        const url = window.location.href;
-        const parts = url.split('?');
-        if(parts.length > 2){
-          for(let i=2; i<parts.length; i++){
-            path += `/?${parts[i].replace('/', '').trim()}`
-          }
-        }
+  // Apply search terms to the URL and reload the page. 
+  const handleSearch= (e) => {
+    // Prevent the default behavior so that we can keep search terms.
+    e.preventDefault();
+    const matchMode = e.target.matchMode.value;
+    const value = e.target.value.value.trimEnd(); 
+    if (value) {  
+      // Append the new matchMode regardless of if search terms were kept.
+      const path = new URLSearchParams();
+      path.append("display", display);
+      if(display === "prsingle" && selectedPR){
+        path.append("pr", selectedPR);
       }
-      
-      // Append each matchMode/value pair to the URL.
-      for (const c of e.constraints.constraints){
-        path += `/?search=${encodeURIComponent(c.matchMode)}&` + 
-        `${encodeURIComponent(c.value.trim())}`;
+      path.append("matchMode", matchMode);
+      if (keepSearch) {
+        // If keepSearch is true, add existing parameters in the URL.
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.getAll("value").forEach((val) => {
+          path.append("value", val); 
+        });
       }
-
-      // Update URL using the basepath
-      window.location.href = `${basePath}${path}`;
+      //Add the search term from the form and redirect. 
+      path.append("value", encodeURIComponent(value)); 
+      window.location.assign(`${basePath}/?${path.toString()}`);
     }
   };
 
-  const renderTable = () => (
+  // Clear the search parameters, but only if they exist.
+  const clearSearch = () => {
+    if(window.location.href.includes("matchMode")){
+      const path = new URLSearchParams();
+      path.append("display", display);
+      if (display === "prsingle" && selectedPR) {
+        path.append("pr", selectedPR);
+      }
+      window.location.assign(`${basePath}/?${path.toString()}`);
+    }
+  };
+
+  // Update the URL on display change
+  const updateUrl = (view, pr) => {
+    const path = new URLSearchParams();
+    path.append("display", view);
+    // Add PR number Single PR view and a PR is provided
+    if (view === "prsingle" && pr) {
+      path.append("pr", pr);
+    }
+    if(window.location.href.includes("matchMode")){
+      const urlParams = new URLSearchParams(window.location.search);
+      path.append("matchMode", urlParams.get("matchMode"));
+
+      urlParams.getAll("value").forEach((val) => {
+        path.append("value", val); 
+      });
+    }
+    // Update the URL without reloading
+    window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
+  };
+  
+
+  // Render table for nightly view.
+  const renderNightlyTable = () => (
     <DataTable
-      value={rows}
+      value={rowsNightly}
       expandedRows={expandedRows}
       stripedRows
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage="No results found." 
+      emptyMessage="No results found."
     >
-      <Column expander style={{ width: "5rem" }} />
+      <Column expander/>
       <Column
         field="name"
         header="Name"
         body={nameTemplate}
-        filter
-        sortable
-        onFilterApplyClick={(e) => handleFilterApply(e)}
-        maxConstraints={4}
-        filterHeader="Filter by Name"
-        filterPlaceholder="Search..."
-      />
-      <Column header={requiredCheckbox}></Column>
-      <Column field="required" header="Required" sortable />
-      <Column
-        field={display === "nightly" ? "runs" : "pr_runs"}
-        header="Runs"
+        className="select-all"
         sortable
       />
+      <Column field = "required"      header = "Required" sortable/>
+      <Column 
+        field = "runs"   
+        header = "Runs"
+        className="whitespace-nowrap px-2"
+        // body={(data) => (
+        //   <span className="whitespace-nowrap">
+        //     <span className="font-bold">
+        //       {data.runs}
+        //     </span > 
+        //     {data.total_reruns > 0 
+        //       ? ` (${data.runs + data.total_reruns} total)` 
+        //       : ''}
+        //   </span>
+        // )} 
+        sortable />
+      <Column field = "total_reruns"  header = "Reruns"  sortable/>
+      <Column field = "fails"         header = "Fails"   sortable/>
+      <Column field = "skips"         header = "Skips"   sortable/>
+      <Column 
+        field = "weather"  
+        header = "Weather"  
+        body = {weatherTemplate} 
+        sortable />
+    </DataTable>
+  );
+
+  const renderPRTable = () => (
+    <DataTable
+      value={rowsPR}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage="No results found."
+    >
+      <Column expander/>
       <Column
-        field={display === "nightly" ? "fails" : "pr_fails"}
-        header="Fails"
+        field="name"
+        header="Name"
+        body={nameTemplate}
+        className="select-all"
+        sortable
+      />
+      <Column field = "required"      header = "Required" sortable/>
+      <Column 
+        field = "runs"   
+        header = "Runs"
+        className="whitespace-nowrap px-2"
+        // body={(data) => (
+        //   <span className="whitespace-nowrap">
+        //     <span className="font-bold">
+        //       {data.runs}
+        //     </span > 
+        //     {data.total_reruns > 0 
+        //       ? ` (${data.runs + data.total_reruns} total)` 
+        //       : ''}
+        //   </span>
+        // )} 
+        sortable />
+      <Column field = "total_reruns"  header = "Reruns"  sortable/>
+      <Column field = "fails"         header = "Fails"   sortable/>
+      <Column field = "skips"         header = "Skips"   sortable/>
+      <Column 
+        field = "weather"  
+        header = "Weather"  
+        body = {weatherTemplate} 
+        sortable />
+    </DataTable>
+  );
+
+  // Make a list of all unique run numbers in the check data.
+  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))].sort((a, b) => b - a);
+    
+  // Render table for prsingle view 
+  const renderSingleViewTable = () => (
+    <DataTable
+      value={rowsSingle}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage={selectedPR.length == 0 ? "Select a Pull Request above." : "No results found."}
+    >
+      <Column expander />
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate} 
+        className="select-all"
         sortable
       />
       <Column
-        field={display === "nightly" ? "skips" : "pr_skips"}
-        header="Skips"
+        field="required"
+        header="Required"
         sortable
       />
       <Column
-        field="weather"
-        header="Weather"
-        body={weatherTemplate}
+        field="result"
+        header="Result"
+        sortable
+      />
+      <Column
+        field="runs"
+        header="Total Runs"
         sortable
       />
     </DataTable>
   );
 
   return (
-    <div className="text-center">
-      <h1 className={"text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"}>
-        <a
-          href={"https://github.com/kata-containers/kata-containers/" +
-          "actions/workflows/ci-nightly.yaml"}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Kata CI Dashboard
-        </a>
-      </h1>
+    <>
 
-      <div className="flex justify-center mt-4 ml-4">
-        <div className="tabs mr-10">
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "nightly"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
-            onClick={() => setDisplay("nightly")}
+      <title>Kata CI Dashboard</title>
+      <div className="text-center text-xs md:text-base">
+        <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
+                        hover:text-blue-500"}>
+          <a
+            href={display === 'nightly' 
+              ? "https://github.com/kata-containers/kata-containers/" +
+                "actions/workflows/ci-nightly.yaml"
+              : "https://github.com/kata-containers/kata-containers/" +
+                "actions/workflows/ci-on-push.yaml"}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            Nightly Jobs
-          </button>
-          <button
-            className={`tab px-4 py-2 border-b-2 ${
-              display === "prchecks"
-                ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
-            onClick={() => setDisplay("prchecks")}
-          >
-            PR Checks
-          </button> 
+            Kata CI Dashboard
+          </a>
+        </h1>
+
+        {display !== "prsingle" && ( 
+        <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
+              <BarChart data={totalStats} />
+        </div>
+        )}
+
+
+        <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
+          <div className="space-x-2 pb-2 pr-3 mx-auto flex">
+            <button 
+              className={tabClass(display === "nightly")}
+              onClick={() => {
+                setDisplay("nightly");
+                updateUrl("nightly");
+              }}>
+              Nightly Jobs
+            </button>
+            <button 
+              className={tabClass(display === "prchecks")}
+              onClick={() => {
+                setDisplay("prchecks");
+                updateUrl("prchecks");
+              }}>
+              PR Checks
+            </button>
+            <button 
+              className={tabClass(display === "prsingle")}
+              onClick={() => {
+                setDisplay("prsingle");
+                updateUrl("prsingle", selectedPR);
+              }}>
+              Single PR
+            </button>
+            {display === "prsingle" && ( 
+              <div className="bg-blue-500 p-2 rounded-xl h-fit">
+              <select 
+                id="selectedrun"
+                className="px-1 h-fit rounded-lg"
+                onChange={(e) => {
+                    setSelectedPR(e.target.value);
+                    updateUrl("prsingle", e.target.value);
+                  }}
+                value={selectedPR} >
+                  <option value="">Select PR</option>
+                  {runNumOptions.map(num => (
+                    <option key={num} value={num}>#{num}</option>
+                  ))}
+              </select>
+              </div>
+              )}
+            </div>
+
+          <div className="space-x-2 mx-auto">
+            <button 
+              className={buttonClass()} 
+              onClick={() => clearSearch()}>
+              Clear Search
+            </button>
+            <button 
+              className={buttonClass(keepSearch)} 
+              onClick={() => setKeepSearch(!keepSearch)}>
+              Keep URL Search Terms
+            </button>
+            <button 
+              className={buttonClass(requiredFilter)} 
+              onClick={() => setRequiredFilter(!requiredFilter)}>
+              Required Jobs Only
+            </button>
+          </div>
         </div>
 
-        <button
-            className={`tab px-4 py-2 border-b-2 ${
-              keepSearch ? "border-blue-500 bg-gray-300"
-                : "border-gray-300 bg-white"
-            } focus:outline-none`}
-            onClick={() => setKeepSearch(!keepSearch)}
-          >
-            Keep URL Search Terms
-          </button>
-      </div>
+        <div className="flex flex-col items-center md:text-base text-xs">
+          <div className="flex min-[1126px]:justify-end justify-center w-full"> 
+            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleSearch(e)}> 
+              <div>
+                <label className="block text-white">Match Mode:</label>
+                <select name="matchMode" className="px-1 h-fit rounded-lg">
+                  <option value="or">Match Any</option>
+                  <option value="and">Match All</option>
+                </select>
+              </div>
+              <div className="mx-2">
+                <label className="block text-white">Search Text:</label>
+                <input type="text" name="value" required></input>
+              </div>
+              <button type="submit" className="bg-blue-500 text-white px-4 rounded-3xl">Submit</button>
+            </form>
+          </div>
+        </div>
+        
+        <div className="mt-1 text-center md:text-lg text-base">
+          Total Rows: {display === "prsingle" ? rowsSingle.length : display === "prchecks" ? rowsPR.length : rowsNightly.length}
+        </div>
 
-      <main className={"m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"}>
-        <div>{renderTable()}</div>
-        <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
-      </main>
-    </div>
+        <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
+                          bg-surface-ground antialiased select-text"}>
+          {/* <div>{renderTable()}</div> */}
+          <div>{display === "prsingle" ? renderSingleViewTable() : display === "prchecks" ? renderPRTable() : renderNightlyTable()}</div>
+        </main>
+      </div>
+    </>
   );
 }
