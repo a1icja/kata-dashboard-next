@@ -182,9 +182,11 @@ async function fetch_previous_attempt_url(prev_url) {
 // Using the previous URL, look at the json with jobs.
 // This will have the results for each job for a previous run. 
 async function fetch_attempt_results(prev_url) {
-  const result = []; // Initialize an array to hold all jobs
-  let p = 1; // Start from the first page
+  // Initialize an array to hold all jobs.
+  const result = []; 
 
+  // Fetch from pages until its processed all jobs.
+  let p = 1; 
   while (true) {
     const jobs_url = `${prev_url}/jobs?per_page=500&page=${p}`;
     const response = await fetch(jobs_url, {
@@ -201,18 +203,15 @@ async function fetch_attempt_results(prev_url) {
 
     const json = await response.json();
     fetch_count++;
-
-    // Add the fetched jobs to the allJobs array
     result.push(...json.jobs);
 
-    // Check if we have more pages to fetch
+    // Break we no have more pages to fetch.
     if (p * jobs_per_request >= json.total_count) {
-      break; // Exit the loop if we've fetched all jobs
+      break;
     }
-    p++; // Increment the page number for the next iteration
+    p++; 
   }
-
-  return { jobs: result }; // Return the jobs array
+  return { jobs: result };
 }
 
 
