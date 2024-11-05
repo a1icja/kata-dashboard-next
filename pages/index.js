@@ -15,12 +15,15 @@ export default function Home() {
   const [loading,        setLoading]        = useState(true);
   const [jobs,           setJobs]           = useState([]);
   const [checks,         setChecks]         = useState([]);
+  const [rowsSingle,     setRowsSingle]     = useState([]);
   const [rowsNightly,    setRowsNightly]           = useState([]);
   const [rowsPR,         setRowsPR]           = useState([]);
   const [expandedRows,   setExpandedRows]   = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
   const [keepSearch,     setKeepSearch]     = useState(true);
   const [display,        setDisplay]        = useState("nightly");
+  const [selectedRun,    setSelectedRun]    = useState("");
+
 
   const icons = [
     "sunny.svg",
@@ -102,6 +105,9 @@ export default function Home() {
         });
     });
   };
+
+  // Reduce latency here
+  // Filter required for single too. 
     
   useEffect(() => {
     setLoading(true);
@@ -344,6 +350,7 @@ export default function Home() {
     }
   };
 
+  // Render table for nightly view.
   const renderNightlyTable = () => (
     <DataTable
       value={rowsNightly}
@@ -434,8 +441,88 @@ export default function Home() {
     </DataTable>
   );
 
+  // Make a list of all unique run numbers in the check data.
+  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))];
+
+  // Filter and set the rows for prsingle view. 
+  useEffect(() => {
+    setLoading(true);
+
+    let filteredData = checks;
+    //Set the rows for the prsingle table
+    if (requiredFilter){
+      filteredData = filteredData.filter((job) => job.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredData = matchAll(filteredData, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredData = matchAny(filteredData, urlParams);
+    }
+
+
+    filteredData = filteredData.map((check) => {
+      // Only if the check include the run number, add it to the data. 
+      const index = check.run_nums.indexOf(Number(selectedRun));
+      return index !== -1
+        ? {
+            name: check.name,
+            required: check.required,
+            result: check.results[index],
+            reruns: check.reruns[index],
+          }
+        : null;
+    }).filter(Boolean); 
+  
+    setRowsSingle(filteredData);
+    setLoading(false);
+  }, [checks, requiredFilter, selectedRun]);
+
+
+  
+    
+  // Render table for prsingle view 
+  const renderSingleViewTable = () => (
+    <DataTable
+      value={rowsSingle}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage={selectedRun.length == 0 ? "Select a Run" : "No results found."}
+    >
+      <Column expander />
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate} 
+        className="select-all"
+        sortable
+      />
+      <Column
+        field="required"
+        header="Required"
+        sortable
+      />
+      <Column
+        field="result"
+        header="Result"
+        sortable
+      />
+      <Column
+        field="reruns"
+        header="Reruns"
+        sortable
+      />
+    </DataTable>
+  );
+
   return (
     <>
+
       <title>Kata CI Dashboard</title>
       <div className="xl:text-center text-xs md:text-base">
         <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
@@ -457,8 +544,9 @@ export default function Home() {
               <BarChart data={totalStats} />
         </div>
 
+
         <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="pr-4 mb-2 space-x-2 mx-auto lg:ml-0">
+          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0 flex">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -469,46 +557,74 @@ export default function Home() {
               onClick={() => setDisplay("prchecks")}>
               PR Checks
             </button>
-          </div>
+            <button 
+              className={tabClass(display === "prsingle")}
+              onClick={() => setDisplay("prsingle")}>
+              Single PR View
+            </button>
+            {display === "prsingle" && ( 
+              <div className="bg-blue-500 p-2 rounded-xl">
+              <select 
+                id="selectedrun"
+                className="px-1 h-fit rounded-lg"
+                onChange={(e) => setSelectedRun(e.target.value)}
+                value={selectedRun} >
+                  <option value="" disabled>Select a PR Number</option>
+                  {runNumOptions.map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+              </select>
+              </div>
+              )}
+            </div>
 
-          <div className="flex flex-col 2xl:flex-row items-center space-x-4 mx-auto xl:mr-0">
-            <form className="flex flex-row p-2 h-fit mb-2 bg-gray-700 border-2 border-gray-600" onSubmit={(e) => handleForm(e)}> 
+          <div className="space-x-2 mx-auto lg:mr-0">
+            <button 
+              className={buttonClass()} 
+              onClick={() => clearSearch()}>
+              Clear Search
+            </button>
+            <button 
+              className={buttonClass(keepSearch)} 
+              onClick={() => setKeepSearch(!keepSearch)}>
+              Keep URL Search Terms
+            </button>
+            <button 
+              className={buttonClass(requiredFilter)} 
+              onClick={() => setRequiredFilter(!requiredFilter)}>
+              Required Jobs Only
+            </button>
+          </div>
+        </div>
+
+
+        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
+          <div className="flex min-[960px]:justify-end justify-center w-full"> 
+            <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
+                <label className="block text-white">Match Mode:</label>
                 <select name="matchMode" className="px-1 h-fit rounded-lg">
                   <option value="or">Match Any</option>
                   <option value="and">Match All</option>
                 </select>
               </div>
               <div className="mx-2">
+                <label className="block text-white">Search Text:</label>
                 <input type="text" name="value" required></input>
               </div>
-              <button type="submit" className="bg-blue-500 text-white px-4  rounded-3xl">Submit</button>
+              <button type="submit" className="bg-blue-500 text-white px-4 rounded-3xl">Submit</button>
             </form>
-            <div className="flex flex-row mb-2 space-x-2 xl:mr-0">
-              <button 
-                className={buttonClass()} 
-                onClick={() => clearSearch()}>
-                Clear Search
-              </button>
-              <button 
-                className={buttonClass(keepSearch)} 
-                onClick={() => setKeepSearch(!keepSearch)}>
-                Keep URL Search Terms
-              </button>
-              <button 
-                className={buttonClass(requiredFilter)} 
-                onClick={() => setRequiredFilter(!requiredFilter)}>
-                Required Jobs Only
-              </button>
-            </div>
           </div>
         </div>
         
-        <div className="mt-1 text-lg text-center">Total Rows: {display === "nightly" ? rowsNightly.length : rowsPR.length}</div>
+        <div className="mt-1 text-lg text-center">
+          Total Rows: {display === "prsingle" ? rowsSingle.length : display === "prchecks" ? rowsPR.length : rowsNightly.length}
+        </div>
 
         <main className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
                           bg-surface-ground antialiased select-text"}>
-          <div>{display === "nightly" ? renderNightlyTable() :renderPRTable()}</div>
+          {/* <div>{renderTable()}</div> */}
+          <div>{display === "prsingle" ? renderSingleViewTable() : display === "prchecks" ? renderPRTable() : renderNightlyTable()}</div>
         </main>
       </div>
     </>
