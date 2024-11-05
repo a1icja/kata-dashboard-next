@@ -524,7 +524,7 @@ export default function Home() {
     <>
 
       <title>Kata CI Dashboard</title>
-      <div className="xl:text-center text-xs md:text-base">
+      <div className="text-center text-xs md:text-base">
         <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
                         hover:text-blue-500"}>
           <a
@@ -540,13 +540,13 @@ export default function Home() {
           </a>
         </h1>
 
-        <div className="absolute l:flex mx-auto top-5 right-5 w-96 h-24">
+        <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
               <BarChart data={totalStats} />
         </div>
 
 
-        <div className="flex flex-wrap mt-2 p-4 text-base">
-          <div className="space-x-2 pb-4 pr-4 mx-auto lg:ml-0 flex">
+        <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
+          <div className="space-x-2 pb-2 pr-2 mx-auto xs:ml-0 flex">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -560,10 +560,10 @@ export default function Home() {
             <button 
               className={tabClass(display === "prsingle")}
               onClick={() => setDisplay("prsingle")}>
-              Single PR View
+              Single PR
             </button>
             {display === "prsingle" && ( 
-              <div className="bg-blue-500 p-2 rounded-xl">
+              <div className="bg-blue-500 p-2 rounded-xl h-fit">
               <select 
                 id="selectedrun"
                 className="px-1 h-fit rounded-lg"
@@ -578,7 +578,7 @@ export default function Home() {
               )}
             </div>
 
-          <div className="space-x-2 mx-auto lg:mr-0">
+          <div className="space-x-2 mx-auto xs:mr-0">
             <button 
               className={buttonClass()} 
               onClick={() => clearSearch()}>
@@ -597,9 +597,8 @@ export default function Home() {
           </div>
         </div>
 
-
-        <div className="flex flex-col items-center min-[960px]:mr-4 text-base">
-          <div className="flex min-[960px]:justify-end justify-center w-full"> 
+        <div className="flex flex-col items-center md:text-base text-xs">
+          <div className="flex min-[1231px]:justify-end justify-center w-full"> 
             <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
                 <label className="block text-white">Match Mode:</label>
@@ -617,7 +616,7 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="mt-1 text-lg text-center">
+        <div className="mt-1 text-center md:text-lg text-base">
           Total Rows: {display === "prsingle" ? rowsSingle.length : display === "prchecks" ? rowsPR.length : rowsNightly.length}
         </div>
 
