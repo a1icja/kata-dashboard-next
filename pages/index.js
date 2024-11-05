@@ -416,6 +416,18 @@ export default function Home() {
     }
   };
 
+  // Clear the search parameters, but only if they exist.
+  const clearSearch = () => {
+    if(window.location.href.includes("matchMode")){
+      const path = new URLSearchParams();
+      path.append("display", display);
+      if (display === "prsingle" && selectedPR) {
+        path.append("pr", selectedPR);
+      }
+      window.location.assign(`${basePath}/?${path.toString()}`);
+    }
+  };
+
   // Update the URL on display change
   const updateUrl = (view, pr) => {
     const path = new URLSearchParams();
@@ -424,6 +436,12 @@ export default function Home() {
     if (view === "prsingle" && pr) {
       path.append("pr", pr);
     }
+    const urlParams = new URLSearchParams(window.location.search);
+    path.append("matchMode", urlParams.get("matchMode"));
+
+    urlParams.getAll("value").forEach((val) => {
+      path.append("value", val); 
+    });
     // Update the URL without reloading
     window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
   };
