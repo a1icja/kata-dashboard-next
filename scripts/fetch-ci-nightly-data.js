@@ -39,9 +39,7 @@ const main_branch_url =
   "kata-containers/kata-containers/branches/main";
 
 // The number of jobs to fetch from the github API on each paged request.
-// If set to >= the number of jobs, will only need to fetch one page.
-// Could set an upper limit to reduce fetches
-const jobs_per_request = 500;
+const jobs_per_request = 100;
 
 // Count of the number of fetches.
 var fetch_count = 0;
@@ -124,7 +122,6 @@ function get_job_data(run) {
   // Fetch the jobs for a run. Extract a few details from the response,
   // including the job name and whether it concluded successfully.
 
-  // TODO: Could remove if jobs_per_request is set appropriately. 
   function fetch_jobs(p) {
     return fetch_jobs_by_page(p).then(function (jobs_request) {
       for (const job of jobs_request["jobs"]) {
@@ -184,23 +181,38 @@ async function fetch_previous_attempt_url(prev_url) {
 
 // Using the previous URL, look at the json with jobs.
 // This will have the results for each job for a previous run. 
-async function fetch_attempt_results(prev_url) {   
-  const jobs_url = `${prev_url}/jobs?per_page=${jobs_per_request}&page=1`;
-  const response = await fetch(jobs_url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `token ${TOKEN}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
+async function fetch_attempt_results(prev_url) {
+  const result = []; // Initialize an array to hold all jobs
+  let p = 1; // Start from the first page
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch attempt results: ${response.statusText}`);
+  while (true) {
+    const jobs_url = `${prev_url}/jobs?per_page=500&page=${p}`;
+    const response = await fetch(jobs_url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `token ${TOKEN}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch attempt results: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    fetch_count++;
+
+    // Add the fetched jobs to the allJobs array
+    result.push(...json.jobs);
+
+    // Check if we have more pages to fetch
+    if (p * jobs_per_request >= json.total_count) {
+      break; // Exit the loop if we've fetched all jobs
+    }
+    p++; // Increment the page number for the next iteration
   }
 
-  fetch_count++;
-  const json = await response.json();
-  return await json; 
+  return { jobs: result }; // Return the jobs array
 }
 
 
