@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development next dev",
+    "win-dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
