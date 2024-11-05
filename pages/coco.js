@@ -45,7 +45,12 @@ export default function CoCo() {
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/coco-dashboard/data/check_stats.json"
       ).then((res) => res.json());
 
-      const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
+      // Map the data and filter to only jobs containing "coco"
+      const mapData = (data) =>
+        Object.keys(data)
+          .map((key) => ({ name: key, ...data[key] })) 
+          .filter((job) => job.name.includes("coco")); 
+
       setJobs(mapData(nightlyData));
       setChecks(mapData(prData));
       setLoading(false);
@@ -113,7 +118,7 @@ export default function CoCo() {
   useEffect(() => {
     setLoading(true);
     // Only show jobs with "CoCo"
-    let filteredJobs = jobs.filter((job) => job.name.includes("coco"));
+    let filteredJobs = jobs;
 
     // Filter based on required tag.
     if (requiredFilter){
@@ -149,7 +154,7 @@ export default function CoCo() {
   useEffect(() => {
     setLoading(true);
     // Only show jobs with "CoCo"
-    let filteredChecks = checks.filter((check) => check.name.includes("coco"));
+    let filteredChecks = checks;
 
     // Filter based on required tag.
     if (requiredFilter){
@@ -182,7 +187,7 @@ export default function CoCo() {
   // Filter and set the rows for Single PR view. 
   useEffect(() => {
     // Only show jobs with "CoCo"
-    let filteredData = checks.filter((check) => check.name.includes("coco"));
+    let filteredData = checks;
 
     // Filter based on required tag.
     if (requiredFilter){
