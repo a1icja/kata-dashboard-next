@@ -284,23 +284,7 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
   const job_stats = {};
   for (const run of runs_with_job_data) {
     for (const job of run["jobs"]) {
-      var shouldAdd = true;
       if (!(job["name"] in job_stats)) {
-        // Check for partial names
-        Object.keys(job_stats).forEach((existing) => {
-          if (existing.includes(job["name"])) {
-            // If an existing job includes the new job, the new job is a partial name.
-            // Thus, we shouldn't add it
-            // console.log("bad new: " + job["name"]);
-            shouldAdd = false;
-          }else if(job["name"].includes(existing)){
-            // If the new job includes existing job, the existing job is a partial name.
-            // Delete it.
-            // console.log("bad existing: " + existing);
-            delete job_stats[existing];
-          }
-        });
-        if(shouldAdd){
           job_stats[job["name"]] = {
             runs: 0,            // e.g. 10, if it ran 10 times
             fails: 0,           // e.g. 3, if it failed 3 out of 10 times
@@ -312,42 +296,39 @@ function compute_job_stats(runs_with_job_data, required_jobs) {
             rerun_results: [],  // an array of strings, e.g. 'Pass', for reruns
             attempt_urls: [],   // ordered list of URLs to each job in a specific run
           };
-        }
       }
-      if(shouldAdd){
-        var job_stat = job_stats[job["name"]];
-        job_stat["runs"] += 1;
-        job_stat["run_nums"].push(run["run_number"]);
-        job_stat["required"] = required_jobs.includes(job["name"]);
-        job_stat["reruns"].push(job["reruns"]);
-        job_stat["rerun_results"].push(job["attempt_results"]);
-        job_stat["urls"].push(run["html_url"]);
-  
-        // Always add the URL from the latest attempt.
-        const jobURLs = [job["html_url"]];
-        if(job["attempt_results"]){
-          // Recompute the fails/skips for the job with the rerun results. 
-          job["attempt_results"].forEach(result => {
-            job_stat = count_stats(result, job_stat);
-          });
-          // Add the rerun URLs if they exist.
-          jobURLs.push(...job["rerun_urls"]);
-        }
-        job_stat["attempt_urls"].push(jobURLs);
-  
-        if (job["conclusion"] != "success") {
-          if (job["conclusion"] == "skipped") {
-            job_stat["skips"] += 1;
-            job_stat["results"].push("Skip");
-          } else {
-            // failed or cancelled
-            job_stat["fails"] += 1;
-            job_stat["results"].push("Fail");
-          }
+      var job_stat = job_stats[job["name"]];
+      job_stat["runs"] += 1;
+      job_stat["run_nums"].push(run["run_number"]);
+      job_stat["required"] = required_jobs.includes(job["name"]);
+      job_stat["reruns"].push(job["reruns"]);
+      job_stat["rerun_results"].push(job["attempt_results"]);
+      job_stat["urls"].push(run["html_url"]);
+
+      // Always add the URL from the latest attempt.
+      const jobURLs = [job["html_url"]];
+      if(job["attempt_results"]){
+        // Recompute the fails/skips for the job with the rerun results. 
+        job["attempt_results"].forEach(result => {
+          job_stat = count_stats(result, job_stat);
+        });
+        // Add the rerun URLs if they exist.
+        jobURLs.push(...job["rerun_urls"]);
+      }
+      job_stat["attempt_urls"].push(jobURLs);
+
+      if (job["conclusion"] != "success") {
+        if (job["conclusion"] == "skipped") {
+          job_stat["skips"] += 1;
+          job_stat["results"].push("Skip");
         } else {
-          job_stat["results"].push("Pass");
-        } 
-      }
+          // failed or cancelled
+          job_stat["fails"] += 1;
+          job_stat["results"].push("Fail");
+        }
+      } else {
+        job_stat["results"].push("Pass");
+      } 
     }
   }
   return job_stats;
