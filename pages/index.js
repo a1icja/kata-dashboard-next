@@ -34,7 +34,7 @@ export default function Home() {
   ];
 
 
-  // Fetch data (either local or external)
+  // Fetch the data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
       let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
@@ -52,7 +52,7 @@ export default function Home() {
   }, []);
 
 
-  // Get bar chart statistics. 
+  // Get the bar chart statistics. 
   const getTotalStats = (data) => {
     return data.reduce((acc, job) => {
       acc.runs  += job.runs;
@@ -67,7 +67,7 @@ export default function Home() {
     : getTotalStats(checks);
 
 
-  // Clear search parameters if they exist.
+  // Clear the search parameters if they exist.
   const clearSearch = () => {
     const urlParts = window.location.href.split("?");
     if(urlParts[1] !== undefined){
@@ -75,15 +75,16 @@ export default function Home() {
     }
   }
 
-  const buttonClass = (active) => `tab px-4 py-2 border-2 
+  const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
     ${active ? "border-blue-500 bg-blue-500 text-white" 
       : "border-gray-300 bg-white hover:bg-gray-100"}`;
 
-  const tabClass = (active) => `tab px-4 py-2 border-b-2 focus:outline-none
+  const tabClass = (active) => `tab md:px-4 px-2 py-2 border-b-2 focus:outline-none
     ${active ? "border-blue-500 bg-gray-300" 
       : "border-gray-300 bg-white hover:bg-gray-100"}`;
 
 
+  // Filters the jobs s.t. all values must be contained in the name.
   const matchAll = (filteredJobs, urlParams) => {
     const values = urlParams.getAll("value");
     return filteredJobs.filter((job) => {
@@ -95,6 +96,7 @@ export default function Home() {
     });
   };
   
+  // Filters the jobs s.t. at least one value must be contained in the name.
   const matchAny = (filteredJobs, urlParams) => {
     const values = urlParams.getAll("value");
     return filteredJobs.filter((job) => {
@@ -106,9 +108,7 @@ export default function Home() {
     });
   };
 
-  // Reduce latency here
-  // Filter required for single too. 
-    
+  // Filter and set the rows for Nightly view. 
   useEffect(() => {
     setLoading(true);
     // Filter based on required tag.
@@ -141,7 +141,7 @@ export default function Home() {
   }, [jobs, requiredFilter]);
 
 
-  
+  // Filter and set the rows for PR Checks view. 
   useEffect(() => {
     setLoading(true);
     // Filter based on required tag.
@@ -173,8 +173,43 @@ export default function Home() {
     setLoading(false);
   }, [checks, requiredFilter]);
 
+  // Filter and set the rows for Single PR view. 
+  useEffect(() => {
+    setLoading(true);
+
+    let filteredData = checks;
+    //Set the rows for the prsingle table
+    if (requiredFilter){
+      filteredData = filteredData.filter((job) => job.required);
+    }
+
+    //Filter based on the URL. 
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get("matchMode") === "and"){
+      filteredData = matchAll(filteredData, urlParams);
+    }else if(urlParams.get("matchMode") === "or"){
+      filteredData = matchAny(filteredData, urlParams);
+    }
+
+    filteredData = filteredData.map((check) => {
+      // Only if the check include the run number, add it to the data. 
+      const index = check.run_nums.indexOf(Number(selectedRun));
+      return index !== -1
+        ? {
+            name: check.name,
+            required: check.required,
+            result: check.results[index],
+            reruns: check.reruns[index],
+          }
+        : null;
+    }).filter(Boolean); 
+  
+    setRowsSingle(filteredData);
+    setLoading(false);
+  }, [checks, requiredFilter, selectedRun]);
 
   // Close all rows on view switch. 
+  // Needed because if view is switched, breaks expanded row toggling.
   useEffect(() => {
     setExpandedRows([])
   }, [display]); 
@@ -199,7 +234,7 @@ export default function Home() {
   );
 
   const nameTemplate = (rowData) => (
-    <div className="cursor-pointer" onClick={() => toggleRow(rowData)} style={{ display: 'inline-block' }}>
+    <div className="cursor-pointer" onClick={() => toggleRow(rowData)}>
     <span style={{ userSelect: 'text' }}>{rowData.name}</span>
   </div>
   );
@@ -443,45 +478,6 @@ export default function Home() {
 
   // Make a list of all unique run numbers in the check data.
   const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))];
-
-  // Filter and set the rows for prsingle view. 
-  useEffect(() => {
-    setLoading(true);
-
-    let filteredData = checks;
-    //Set the rows for the prsingle table
-    if (requiredFilter){
-      filteredData = filteredData.filter((job) => job.required);
-    }
-
-    //Filter based on the URL. 
-    const urlParams = new URLSearchParams(window.location.search);
-    if(urlParams.get("matchMode") === "and"){
-      filteredData = matchAll(filteredData, urlParams);
-    }else if(urlParams.get("matchMode") === "or"){
-      filteredData = matchAny(filteredData, urlParams);
-    }
-
-
-    filteredData = filteredData.map((check) => {
-      // Only if the check include the run number, add it to the data. 
-      const index = check.run_nums.indexOf(Number(selectedRun));
-      return index !== -1
-        ? {
-            name: check.name,
-            required: check.required,
-            result: check.results[index],
-            reruns: check.reruns[index],
-          }
-        : null;
-    }).filter(Boolean); 
-  
-    setRowsSingle(filteredData);
-    setLoading(false);
-  }, [checks, requiredFilter, selectedRun]);
-
-
-  
     
   // Render table for prsingle view 
   const renderSingleViewTable = () => (
@@ -492,7 +488,7 @@ export default function Home() {
       rowExpansionTemplate={rowExpansionTemplate}
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
-      emptyMessage={selectedRun.length == 0 ? "Select a Run" : "No results found."}
+      emptyMessage={selectedRun.length == 0 ? "Select a Pull Request above." : "No results found."}
     >
       <Column expander />
       <Column
@@ -546,7 +542,7 @@ export default function Home() {
 
 
         <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
-          <div className="space-x-2 pb-2 pr-2 mx-auto xs:ml-0 flex">
+          <div className="space-x-2 pb-2 pr-3 mx-auto flex">
             <button 
               className={tabClass(display === "nightly")}
               onClick={() => setDisplay("nightly")}>
@@ -569,7 +565,7 @@ export default function Home() {
                 className="px-1 h-fit rounded-lg"
                 onChange={(e) => setSelectedRun(e.target.value)}
                 value={selectedRun} >
-                  <option value="" disabled>Select a PR Number</option>
+                  <option value="" disabled>Select PR</option>
                   {runNumOptions.map(num => (
                     <option key={num} value={num}>{num}</option>
                   ))}
@@ -578,7 +574,7 @@ export default function Home() {
               )}
             </div>
 
-          <div className="space-x-2 mx-auto xs:mr-0">
+          <div className="space-x-2 mx-auto">
             <button 
               className={buttonClass()} 
               onClick={() => clearSearch()}>
@@ -598,7 +594,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center md:text-base text-xs">
-          <div className="flex min-[1231px]:justify-end justify-center w-full"> 
+          <div className="flex min-[1126px]:justify-end justify-center w-full"> 
             <form className="p-2 bg-gray-700 rounded-md flex flex-row" onSubmit={(e) => handleForm(e)}> 
               <div>
                 <label className="block text-white">Match Mode:</label>
