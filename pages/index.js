@@ -5,8 +5,8 @@ import { DataTable } from "primereact/datatable";
 import { Column }    from "primereact/column";
 import { OverlayPanel } from 'primereact/overlaypanel';
 
-import NightlyData  from "../data/job_stats.json";
-import PRData       from "../data/check_stats.json";
+// import NightlyData  from "../data/job_stats.json";
+// import PRData       from "../data/check_stats.json";
 import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
 import BarChart from './BarChart'; 
@@ -38,10 +38,10 @@ export default function Home() {
   // Fetch the data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      const nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
+      const nightlyData = process.env.NODE_ENV === "development" ? null : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       ).then((res) => res.json());
-      const prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
+      const prData = process.env.NODE_ENV === "development" ? null : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json");
 
       const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
