@@ -298,7 +298,7 @@ export default function Home() {
           {runEntries.map(({
             run_num, 
             result, 
-            // url, 
+            url, 
             reruns, 
             rerun_result, 
             attempt_urls 
@@ -342,7 +342,7 @@ export default function Home() {
                       {runStatuses.map((status, index) => (
                         <li key={index} className="p-2 hover:bg-gray-200">
                           <a 
-                            href={attempt_urls[index]} 
+                            href={attempt_urls[index] || `${url}/attempts/${index}`} 
                             target="_blank" 
                             rel="noopener noreferrer">
                               {status}
