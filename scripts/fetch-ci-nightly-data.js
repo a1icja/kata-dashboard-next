@@ -40,7 +40,7 @@ const main_branch_url =
 
 // The number of jobs to fetch from the github API on each paged request.
 // If set to >= the number of jobs, will only need to fetch one page.
-// Could set upper limit (won't cause error)
+// Could set an upper limit to reduce fetches
 const jobs_per_request = 500;
 
 // Count of the number of fetches.

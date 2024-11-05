@@ -31,7 +31,9 @@ const main_branch_url =
   "kata-containers/kata-containers/branches/main";
 
 // The number of checks to fetch from the github API on each paged request.
-const results_per_request = 100;
+// If set to >= the number of jobs, will only need to fetch one page.
+// Could set an upper limit to reduce fetches
+const results_per_request = 500;
 // The last X closed PRs to retrieve
 const pr_count = 10; 
 // Count of the number of fetches
