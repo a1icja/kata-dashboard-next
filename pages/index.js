@@ -40,7 +40,8 @@ export default function Home() {
       let nightlyData = process.env.NODE_ENV === "development" ? NightlyData : await fetch(
         "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       ).then((res) => res.json());
-      let prData = process.env.NODE_ENV === "development" ? PRData : {};
+      let prData = process.env.NODE_ENV === "development" ? PRData : await fetch(
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json");
 
       const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
       setJobs(mapData(nightlyData));
