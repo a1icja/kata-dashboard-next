@@ -592,7 +592,7 @@ export default function Home() {
             href={`${basePath}/coco`}
             className="hover:text-blue-500 underline m-4 inline-block p-2 rounded-xl bg-blue-100"
           > 
-            CoCo Dashboard
+            CoCo CI Dashboard
           </a>
         {/* </div> */}
         <h1 className={"text-4xl ml-4 mb-6 underline text-center"}>
@@ -610,9 +610,11 @@ export default function Home() {
           </a>
         </h1>
 
-        <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
-              <BarChart data={totalStats} />
-        </div>
+        {display !== "prsingle" && ( 
+          <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
+                <BarChart data={totalStats} />
+          </div>
+        )}
 
 
         <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">

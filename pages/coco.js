@@ -599,8 +599,15 @@ export default function CoCo() {
     <>
 
       <title>Coco CI Dashboard</title>
-      <div className="text-center text-xs md:text-base">
-        <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
+      <div className="text-xs md:text-base">
+        {/* Will break if basepath="" (doesn't work in dev) */}
+        <a 
+          href={`${basePath}`}
+          className="hover:text-blue-500 underline m-4 inline-block p-2 rounded-xl bg-blue-100"
+        > 
+          Kata CI Dashboard
+        </a>
+        <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-center \
                         hover:text-blue-500"}>
           <a
             href={"https://github.com/confidential-containers"}
@@ -611,9 +618,11 @@ export default function CoCo() {
           </a>
         </h1>
 
-        <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
-              <BarChart data={totalStats} />
-        </div>
+        {display !== "prsingle" && ( 
+          <div className="min-[1231px]:absolute flex mx-auto top-5 right-5 w-96 h-24">
+                <BarChart data={totalStats} />
+          </div>
+        )}
 
 
         <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
