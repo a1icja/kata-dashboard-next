@@ -39,10 +39,10 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       const nightlyData = process.env.NODE_ENV === "development" ? null : await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/coco-dashboard/data/job_stats.json"
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
       ).then((res) => res.json());
       const prData = process.env.NODE_ENV === "development" ? null : await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/coco-dashboard/data/check_stats.json"
+        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json"
       ).then((res) => res.json());
 
       const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
