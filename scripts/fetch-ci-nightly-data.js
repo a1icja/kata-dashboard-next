@@ -101,7 +101,7 @@ function get_required_jobs(main_branch) {
 function get_job_data(run) {
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
-    const jobs_url = `${run["jobs_url"]}?per_page=${jobs_per_request}&page=${which_page}`;
+    const jobs_url = `${run["jobs_url"]}xxxxx?per_page=${jobs_per_request}&page=${which_page}`;
     const response = await fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
