@@ -56,7 +56,7 @@ async function fetch_workflow_runs() {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch workflow runs: ${response.status}`);
+    console.error(`Failed to fetch workflow runs: ${response.status}`);
   }
 
   const json = await response.json();
@@ -76,7 +76,7 @@ async function fetch_main_branch() {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch main branch: ${response.status}`);
+    console.error(`Failed to fetch main branch: ${response.status}`);
   }
 
   const json = await response.json();
@@ -111,7 +111,7 @@ function get_job_data(run) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch jobs: ${response.status}`);
+      console.error(`Failed to fetch jobs: ${response.status}`);
     }
 
     const json = await response.json();
@@ -170,7 +170,7 @@ async function fetch_previous_attempt_url(prev_url) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch attempt url: ${response.statusText}`);
+    console.error(`Failed to fetch attempt url: ${response.statusText}`);
   }
 
   const json = await response.json();
@@ -198,7 +198,7 @@ async function fetch_attempt_results(prev_url) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch attempt results: ${response.statusText}`);
+      console.error(`Failed to fetch attempt results: ${response.statusText}`);
     }
 
     const json = await response.json();
@@ -226,7 +226,7 @@ async function get_atttempt_results(runs_with_job_data){
       // Get json with results for the run, which has job information.
       const json1 = await fetch_attempt_results(prev_url); 
       if(json1 === null){
-        throw new Error("json1 empty");
+        console.error("json1 empty");
       }  
 
       // For each job in the run, append the result.
@@ -270,7 +270,7 @@ async function get_atttempt_results(runs_with_job_data){
       // Get json with next attempt URL.
       const json2 = await fetch_previous_attempt_url(prev_url);
       if(json2 === null){
-        throw new Error("json2 empty");
+        console.error("json2 empty");
       }
       prev_url = json2.previous_attempt_url
     }

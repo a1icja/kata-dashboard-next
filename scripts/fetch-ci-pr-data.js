@@ -50,7 +50,7 @@ async function fetch_pull_requests() {
     });
   
     if (!response.ok) {
-      throw new Error(`Failed to fetch pull requests: ${response.status}`);
+      console.error(`Failed to fetch pull requests: ${response.status}`);
     }
   
     const json = await response.json();
@@ -72,7 +72,7 @@ async function fetch_main_branch() {
     });
 
     if (!response.ok) {
-    throw new Error(`Failed to fetch main branch data: ${response.status}`);
+    console.error(`Failed to fetch main branch data: ${response.status}`);
     }
 
     const json = await response.json();
@@ -103,7 +103,7 @@ function get_check_data(pr) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch check data: ${response.status}`);
+      console.error(`Failed to fetch check data: ${response.status}`);
     }
 
     const json = await response.json();
