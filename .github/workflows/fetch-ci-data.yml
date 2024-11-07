@@ -7,6 +7,10 @@ on:
   push:  
     branches:
       - main 
+    paths:
+      - 'scripts/fetch-data-nightly.js'
+      - 'scripts/fetch-data-pr.js'
+      - '.github/workflows/fetch-ci-data.yaml'
 
 
 
