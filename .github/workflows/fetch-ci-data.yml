@@ -2,7 +2,7 @@ name: Fetch CI Data
 run-name: Fetch CI Data
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
   push:  
     branches:
@@ -34,7 +34,7 @@ jobs:
           git checkout latest-dashboard-data
 
           # back out whatever data was there
-          git reset HEAD~1
+          # git reset HEAD~1
 
           # overwrite the old data
           mkdir -p data/
