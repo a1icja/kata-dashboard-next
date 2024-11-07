@@ -43,5 +43,5 @@ jobs:
           
           # commit
           git add data
-          git commit -m '[skip ci] latest ci nightly data'
+          git commit -m '[skip ci] latest ci data'
           git push --force
