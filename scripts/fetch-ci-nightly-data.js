@@ -56,7 +56,8 @@ async function fetch_workflow_runs() {
   });
 
   if (!response.ok) {
-    console.error(`Failed to fetch workflow runs: ${response.status}`);
+    console.error(`Failed to fetch workflow runs:  ${response.status}: ` +
+                                                   `${response.statusText}`);
   }
 
   const json = await response.json();
@@ -76,7 +77,8 @@ async function fetch_main_branch() {
   });
 
   if (!response.ok) {
-    console.error(`Failed to fetch main branch: ${response.status}`);
+    console.error(`Failed to fetch main branch:  ${response.status}: ` +
+                                                   `${response.statusText}`);
   }
 
   const json = await response.json();
@@ -101,7 +103,7 @@ function get_required_jobs(main_branch) {
 function get_job_data(run) {
   // Perform the actual (paged) request
   async function fetch_jobs_by_page(which_page) {
-    const jobs_url = `${run["jobs_url"]}xxxxx?per_page=${jobs_per_request}&page=${which_page}`;
+    const jobs_url = `${run["jobs_url"]}?per_page=${jobs_per_request}&page=${which_page}`;
     const response = await fetch(jobs_url, {
       headers: {
         Accept: "application/vnd.github+json",
@@ -111,7 +113,8 @@ function get_job_data(run) {
     });
 
     if (!response.ok) {
-      console.error(`Failed to fetch jobs: ${response.status}`);
+      console.error(`Failed to fetch jobs:  ${response.status}: ` +
+                                                   `${response.statusText}`);
     }
 
     const json = await response.json();
@@ -123,7 +126,8 @@ function get_job_data(run) {
   // including the job name and whether it concluded successfully.
 
   function fetch_jobs(p) {
-    return fetch_jobs_by_page(p).then(function (jobs_request) {
+    return fetch_jobs_by_page(p)
+    .then(function (jobs_request) {
       for (const job of jobs_request["jobs"]) {
         run_with_job_data["jobs"].push({
           name: job["name"],
@@ -137,6 +141,10 @@ function get_job_data(run) {
         return run_with_job_data;
       }
       return fetch_jobs(p + 1);
+    })    
+    .catch(function (error) {
+      console.error("Error fetching checks:", error);
+      throw error;
     });
   }
 

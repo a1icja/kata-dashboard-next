@@ -50,7 +50,8 @@ async function fetch_pull_requests() {
     });
   
     if (!response.ok) {
-      console.error(`Failed to fetch pull requests: ${response.status}`);
+      console.error(`Failed to fetch pull requests:  ${response.status}: ` +
+                                                   `${response.statusText}`);
     }
   
     const json = await response.json();
@@ -72,7 +73,8 @@ async function fetch_main_branch() {
     });
 
     if (!response.ok) {
-    console.error(`Failed to fetch main branch data: ${response.status}`);
+      console.error(`Failed to fetch main branch data:  ${response.status}: ` +
+                                                   `${response.statusText}`);
     }
 
     const json = await response.json();
@@ -103,7 +105,8 @@ function get_check_data(pr) {
     });
 
     if (!response.ok) {
-      console.error(`Failed to fetch check data: ${response.status}`);
+      console.error(`Failed to fetch check data:  ${response.status}: ` +
+                                                   `${response.statusText}`);
     }
 
     const json = await response.json();
@@ -158,7 +161,6 @@ function compute_check_stats(prs_with_check_data, required_jobs) {
     const check__urls = {};
 
     for (const check of pr["checks"]) {
-      var shouldAdd = true;
       if (!(check["name"] in check_stats)) {
         check_stats[check["name"]] = {
           runs: 0,            // e.g. 10, if it ran 10 times
