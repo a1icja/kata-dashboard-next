@@ -6,8 +6,6 @@ import { Column }    from "primereact/column";
 import { OverlayPanel } from 'primereact/overlaypanel';
 import Head from "next/head";
 
-// import NightlyData  from "../data/job_stats.json";
-// import PRData       from "../data/check_stats.json";
 import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
 import BarChart from '../components/BarChart'; 
@@ -36,23 +34,38 @@ export default function Home() {
   ];
 
 
-  // Fetch the data (either local or external)
   useEffect(() => {
     const fetchData = async () => {
-      const nightlyData = process.env.NODE_ENV === "development" ? null : await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
-      ).then((res) => res.json());
-      const prData = process.env.NODE_ENV === "development" ? null : await fetch(
-        "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json"
-      ).then((res) => res.json());
+      let nightlyData = {};
+      let prData = {};
 
-      const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
-      setJobs(mapData(nightlyData));
-      setChecks(mapData(prData));
-      setLoading(false);
+      if (process.env.NODE_ENV === "development") {
+        nightlyData = (await import("../localData/job_stats.json")).default;
+        prData = (await import("../localData/check_stats.json")).default;
+      } else {
+        nightlyData = await fetch(
+          "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/job_stats.json"
+        ).then((res) => res.json());
+        prData = await fetch(
+          "https://raw.githubusercontent.com/a1icja/kata-dashboard-next/refs/heads/latest-dashboard-data/data/check_stats.json"
+        ).then((res) => res.json());
+      }
+
+      try {
+        const mapData = (data) => Object.keys(data).map((key) => ({ name: key, ...data[key] }));
+        setJobs(mapData(nightlyData));
+        setChecks(mapData(prData));
+      } catch (error) {
+        // TODO: Add pop-up/toast message for error
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
+
     fetchData();
   }, []);
+
 
 
   // Get the bar chart statistics. 
@@ -259,7 +272,9 @@ export default function Home() {
     );
   };
 
-  const overlayRefs = useRef([]);
+  const rerunRefs = useRef([]);
+  const maintainRefs = useRef([]);
+
 
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" 
@@ -299,6 +314,8 @@ export default function Home() {
       .filter(({ regex }) => new RegExp(regex).test(job.name))
       .flatMap(match => match.owners);
 
+    
+
     return (
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         <div className="flex flex-wrap gap-4">
@@ -323,8 +340,10 @@ export default function Home() {
 
             // IDs can't have a '/'...
             const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, '');
-            const badgeId = `badge-tooltip-${sanitizedJobName}-${run_num}`;
-            overlayRefs.current[badgeId] = overlayRefs.current[badgeId] 
+
+            const badgeReruns = `reruns-${sanitizedJobName}-${run_num}`;
+            
+            rerunRefs.current[badgeReruns] = rerunRefs.current[badgeReruns] 
               || React.createRef();
 
             return (
@@ -339,12 +358,12 @@ export default function Home() {
                   <span className="p-overlay-badge">
                     <sup  className="text-xs font-bold align-super ml-1"
                           onMouseEnter={(e) => 
-                            overlayRefs.current[badgeId].current.toggle(e)}>
+                            rerunRefs.current[badgeReruns].current.toggle(e)}>
                       {reruns+1}
                     </sup>
-                    <OverlayPanel ref={overlayRefs.current[badgeId]} dismissable
+                    <OverlayPanel ref={rerunRefs.current[badgeReruns]} dismissable
                     onMouseLeave={(e) => 
-                      overlayRefs.current[badgeId].current.toggle(e)}>
+                      rerunRefs.current[badgeReruns].current.toggle(e)}>
                     <ul className="bg-white border rounded shadow-lg p-2">
                       {runStatuses.map((status, index) => (
                         <li key={index} className="p-2 hover:bg-gray-200">
@@ -366,27 +385,60 @@ export default function Home() {
         </div>
         <div className="mt-4 p-2 bg-gray-300 w-fit">
           {maintainerData.length > 0 ? (
-            <div>
-              Maintainers:{" "}
-              {maintainerData.map((owner, index) => (
-                <span key={index}>
-                  <a 
-                    href={`https://github.com/${owner.github}`} 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline"
+            <div className="flex flex-row">
+              Maintainers:
+              {maintainerData.map((owner, index) => {
+                const badgeMaintain = `maintain-${owner.github}`;
+                maintainRefs.current[badgeMaintain] = maintainRefs.current[badgeMaintain] || React.createRef();
+                return (
+                  <div key={index}>
+                  <span 
+                    key={index} 
+                    onMouseEnter={(e) => 
+                      maintainRefs.current[badgeMaintain].current.toggle(e)}
                   >
-                    {owner.fullname}
-                  </a>
-                  {index < maintainerData.length - 1 && ", "}
-                </span>
-              ))}
+                    <a 
+                      href={`https://github.com/${owner.github}`} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    >
+                      {owner.fullname}
+                    </a>
+                    {index < maintainerData.length - 1 && ", "}
+                  </span>
+                  <OverlayPanel ref={maintainRefs.current[badgeMaintain]} dismissable
+                    onMouseLeave={(e) => 
+                      maintainRefs.current[badgeMaintain].current.toggle(e)}>
+                    <ul className="bg-white border rounded shadow-lg p-2">
+                        <li key={index} className="p-2 hover:bg-gray-200">
+                          <span className="font-bold">Email: </span> {owner.email}
+                        </li>
+                        <a  href={`https://github.com/${owner.github}`}
+                            target="_blank"
+                            rel="noopener noreferrer">                        
+                          <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
+                            <span className="font-bold">Github: </span> 
+                            <span className="text-right">{owner.github}</span> 
+                          </li>
+                        </a>
+                        <a  href={`${owner.slackurl}`}
+                            target="_blank"
+                            rel="noopener noreferrer">                        
+                          <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
+                            <span className="font-bold">Slack: </span> 
+                            <span className="text-right">@{owner.slack}</span> 
+                          </li>
+                        </a>
+                    </ul>
+                  </OverlayPanel>
+                </div>                
+              )})}
             </div>
           ) : (
             <div>No Maintainer Information Available</div>
           )}
         </div>
-
       </div>
     );
   };
