@@ -5,7 +5,7 @@
 # @kata-containers/cri-o: ?
 # @kata-containers/dragonball: bergwolf
 # @kata-containers/rust: pmores, lifupan
-# @kata-containers/amd: AdithyaKrishnan, ryansavino
+# @kata-containers/amd: AdithyaKrishnan, arvindskumar99
 
 
 ## slack: member id, display name, or link to profile?
@@ -16,62 +16,70 @@ mappings:
     owners:
       - fullname: "Hyounggyu Choi"
         email: "Hyounggyu.Choi@ibm.com"
-        # slack: "https://katacontainers.slack.com/team/U0369UMM69M"
-        # slack: "U0369UMM69M"
+        slackurl: "https://katacontainers.slack.com/team/U0369UMM69M"
+        # slackid: "U0369UMM69M"
         slack: "Hyounggyu Choi"
         github: "BbolroC"
+        group: "arch-s390x"
 
   # @kata-containers/arch-ppc64le: Amulyam24?
   - regex: ".*ppc64le.*"
     owners:
       - fullname: "Amulya Meka"
         email: "amulmek1@in.ibm.com"
-        # slack: "https://katacontainers.slack.com/team/UV7RP34GK"
-        # slack: "UV7RP34GK"
+        slackurl: "https://katacontainers.slack.com/team/UV7RP34GK"
+        # slackid: "UV7RP34GK"
         slack: "Amulyam24"
         github: "Amulyam24"
+        group: "arch-ppc64le"
+
 
   # @kata-containers/dragonball: bergwolf
   - regex: ".*dragonball.*"
     owners:
       - fullname: "Peng Tao"
         email: "http://bergwolf.github.io/"
-        # slack: "https://katacontainers.slack.com/team/U8709NBSM"
-        # slack: "U8709NBSM"
+        slackurl: "https://katacontainers.slack.com/team/U8709NBSM"
+        # slackid: "U8709NBSM"
         slack: "bergwolf"
         github: "bergwolf"
+        group: "dragonball"
+
 
   # @kata-containers/rust: pmores, lifupan
   - regex: ".*runtime-rs.*"
     owners:
       - fullname: "Pavel Mores"
         email: "pmores@redhat.com"
-        # slack: "https://katacontainers.slack.com/team/U03CCR6KGBC"
-        # slack: "U03CCR6KGBC"
+        slackurl: "https://katacontainers.slack.com/team/U03CCR6KGBC"
+        # slackid: "U03CCR6KGBC"
         slack: "Pavel Mores"
         github: "pmores"
+        group: "rust"
 
       - fullname: "Fupan Li"
         email: "lifupan@gmail.com"
-        # slack: "https://katacontainers.slack.com/team/U059Y60DZPW"
-        # slack: "U059Y60DZPW"
+        slackurl: "https://katacontainers.slack.com/team/U059Y60DZPW"
+        # slackid: "U059Y60DZPW"
         slack: "fupan li"
         github: "lifupan"
+        group: "rust"
 
 # @kata-containers/amd: AdithyaKrishnan, ryansavino
   - regex: ".*qemu-(sev|snp).*"
     owners:
       - fullname: "Adithya Krishnan Kannan"
         email: "AdithyaKrishnan.Kannan@amd.com"
-        # slack: "https://cloud-native.slack.com/team/U05TX2URB16"
-        # slack: "U05TX2URB16"
+        slackurl: "https://cloud-native.slack.com/team/U05TX2URB16"
+        # slackid: "U05TX2URB16"
         slack: "Adi"
         github: "AdithyaKrishnan"
+        group: "amd"
 
-      - fullname: "Ryan Savino"
-        email: "ryan.savino@amd.com"
-        # slack: "https://cloud-native.slack.com/team/U03CXU0LY79"
-        # slack: "U03CXU0LY79"
-        slack: "Ryan Savino"
-        github: "ryansavino"
-
+      - fullname: "Arvind Kumar"
+        email: "arvind.kumar@amd.com"
+        slackurl: "https://cloud-native.slack.com/team/U06HXU0312P"
+        # slackid: "U06HXU0312P"
+        slack: "Arvind Kumar"
+        github: "arvindskumar99"
+        group: "amd"

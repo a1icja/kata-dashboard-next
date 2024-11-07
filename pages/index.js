@@ -389,9 +389,11 @@ export default function Home() {
               Maintainers:
               {maintainerData.map((owner, index) => {
                 const badgeMaintain = `maintain-${owner.github}`;
-                maintainRefs.current[badgeMaintain] = maintainRefs.current[badgeMaintain] || React.createRef();
+                maintainRefs.current[badgeMaintain] = maintainRefs.current[badgeMaintain]
+                  || React.createRef();
+
                 return (
-                  <div key={index}>
+                  <div key={index} className="mx-2">
                   <span 
                     key={index} 
                     onMouseEnter={(e) => 
@@ -411,28 +413,32 @@ export default function Home() {
                     onMouseLeave={(e) => 
                       maintainRefs.current[badgeMaintain].current.toggle(e)}>
                     <ul className="bg-white border rounded shadow-lg p-2">
-                        <li key={index} className="p-2 hover:bg-gray-200">
-                          <span className="font-bold">Email: </span> {owner.email}
+                      <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
+                        <span className="font-bold">Group: </span> 
+                        <span className="font-right">{owner.group}</span> 
+                      </li>
+                      <li key={index} className="p-2 hover:bg-gray-200">
+                        <span className="font-bold">Email: </span> {owner.email}
+                      </li>
+                      <a  href={`https://github.com/${owner.github}`}
+                          target="_blank"
+                          rel="noopener noreferrer">
+                        <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
+                          <span className="font-bold">Github: </span>
+                          <span className="text-right">{owner.github}</span>
                         </li>
-                        <a  href={`https://github.com/${owner.github}`}
-                            target="_blank"
-                            rel="noopener noreferrer">                        
-                          <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
-                            <span className="font-bold">Github: </span> 
-                            <span className="text-right">{owner.github}</span> 
-                          </li>
-                        </a>
-                        <a  href={`${owner.slackurl}`}
-                            target="_blank"
-                            rel="noopener noreferrer">                        
-                          <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
-                            <span className="font-bold">Slack: </span> 
-                            <span className="text-right">@{owner.slack}</span> 
-                          </li>
-                        </a>
+                      </a>
+                      <a  href={`${owner.slackurl}`}
+                          target="_blank"
+                          rel="noopener noreferrer">
+                        <li key={index} className="p-2 hover:bg-gray-200 flex justify-between">
+                          <span className="font-bold">Slack: </span>
+                          <span className="text-right">@{owner.slack}</span>
+                        </li>
+                      </a>
                     </ul>
                   </OverlayPanel>
-                </div>                
+                </div>
               )})}
             </div>
           ) : (
