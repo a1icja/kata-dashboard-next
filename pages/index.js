@@ -4,6 +4,7 @@ import Image from "next/image";
 import { DataTable } from "primereact/datatable";
 import { Column }    from "primereact/column";
 import { OverlayPanel } from 'primereact/overlaypanel';
+import Head from "next/head";
 
 // import NightlyData  from "../data/job_stats.json";
 // import PRData       from "../data/check_stats.json";
@@ -584,7 +585,9 @@ export default function Home() {
   return (
     <>
 
-      <title>Kata CI Dashboard</title>
+      <Head>
+        <title>Kata CI Dashboard</title>
+      </Head>
       <div className="text-center text-xs md:text-base">
         <h1 className={"text-4xl mt-4 ml-4 mb-6 underline text-inherit \
                         hover:text-blue-500"}>
