@@ -9,7 +9,7 @@ import { OverlayPanel } from 'primereact/overlaypanel';
 // import PRData       from "../data/check_stats.json";
 import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
-import BarChart from './BarChart'; 
+import BarChart from '../components/BarChart'; 
 
 
 export default function Home() {
