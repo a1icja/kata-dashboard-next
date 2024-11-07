@@ -10,7 +10,7 @@ on:
     paths:
       - 'scripts/fetch-ci-nightly-data.js'
       - 'scripts/fetch-ci-pr-data.js'
-      - '.github/workflows/fetch-ci-data.yaml'
+      - '.github/workflows/fetch-ci-data.yml'
 
 
 
