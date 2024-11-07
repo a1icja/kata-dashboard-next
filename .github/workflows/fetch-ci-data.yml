@@ -8,8 +8,8 @@ on:
     branches:
       - main 
     paths:
-      - 'scripts/fetch-data-nightly.js'
-      - 'scripts/fetch-data-pr.js'
+      - 'scripts/fetch-ci-nightly-data.js'
+      - 'scripts/fetch-ci-pr-data.js'
       - '.github/workflows/fetch-ci-data.yaml'
 
 
