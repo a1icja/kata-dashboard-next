@@ -18,14 +18,18 @@ jobs:
   fetch-and-commit-data:
     runs-on: ubuntu-22.04
 
+    env:
+      NODE_ENV: production
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Update dashboard data
         run: |
           # fetch ci nightly data as temporary file
-          TOKEN=${{ secrets.GITHUB_TOKEN }} node scripts/fetch-ci-nightly-data.js | tee tmp-data.json
-          TOKEN=${{ secrets.GITHUB_TOKEN }} node scripts/fetch-ci-pr-data.js | tee tmp-data2.json
+          node scripts/fetch-ci-nightly-data.js | tee tmp-data.json
+          node scripts/fetch-ci-pr-data.js | tee tmp-data2.json
 
           # switch to a branch specifically for holding latest data
           git config --global user.name "GH Actions Workflow"
