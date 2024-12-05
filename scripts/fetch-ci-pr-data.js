@@ -13,6 +13,7 @@
 // TOKEN=token <GITHUB_PAT_OR_OTHER_VALID_TOKEN>
 
 // Set token used for making Authorized GitHub API calls
+require('dotenv').config();
 const TOKEN = process.env.TOKEN;  // In dev, set by .env file; in prod, set by GitHub Secret
   
 // pull_requests attribute often empty if commit/branch from a fork: https://github.com/orgs/community/discussions/25220
